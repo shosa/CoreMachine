@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  tecnico
+  utente
+}
+
+enum MaintenanceType {
+  ordinaria
+  straordinaria
+  guasto
+  riparazione
+}
+
+enum MaintenanceFrequency {
+  daily
+  weekly
+  monthly
+  quarterly
+  biannual
+  annual
+}
+
+enum DocumentCategory {
+  manuale_uso
+  certificazione_ce
+  scheda_tecnica
+  fattura_acquisto
+  altro
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  role      UserRole @default(utente)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  maintenances        Maintenance[]
+  uploadedDocuments   Document[]
+  scheduledMaintenances ScheduledMaintenance[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  types Type[]
+
+  @@map("categories")
+}
+
+model Type {
+  id          String   @id @default(uuid())
+  categoryId  String   @map("category_id")
+  name        String
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  machines Machine[]
+
+  @@unique([categoryId, name])
+  @@map("types")
+}
+
+model Machine {
+  id               String    @id @default(uuid())
+  typeId           String    @map("type_id")
+  serialNumber     String    @unique @map("serial_number")
+  description      String    @db.Text
+  manufacturer     String
+  model            String
+  yearBuilt        Int?      @map("year_built")
+  purchaseDate     DateTime? @map("purchase_date")
+  dealer           String?
+  invoiceReference String?   @map("invoice_reference")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  type                  Type                   @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  documents             Document[]
+  maintenances          Maintenance[]
+  scheduledMaintenances ScheduledMaintenance[]
+
+  @@map("machines")
+}
+
+model Document {
+  id               String           @id @default(uuid())
+  machineId        String           @map("machine_id")
+  fileName         String           @map("file_name")
+  filePath         String           @map("file_path")
+  fileSize         Int              @map("file_size")
+  mimeType         String           @map("mime_type")
+  documentCategory DocumentCategory @map("document_category")
+  uploadedById     String           @map("uploaded_by_id")
+  uploadedAt       DateTime         @default(now()) @map("uploaded_at")
+
+  // Relations
+  machine    Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@map("documents")
+}
+
+model Maintenance {
+  id                 String          @id @default(uuid())
+  machineId          String          @map("machine_id")
+  operatorId         String          @map("operator_id")
+  date               DateTime
+  type               MaintenanceType
+  problemDescription String?         @db.Text @map("problem_description")
+  workPerformed      String          @db.Text @map("work_performed")
+  spareParts         String?         @db.Text @map("spare_parts")
+  cost               Decimal?        @db.Decimal(10, 2)
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  machine  Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  operator User    @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+
+  @@map("maintenances")
+}
+
+model ScheduledMaintenance {
+  id                    String               @id @default(uuid())
+  machineId             String               @map("machine_id")
+  title                 String
+  description           String?              @db.Text
+  frequency             MaintenanceFrequency
+  nextDueDate           DateTime             @map("next_due_date")
+  notificationDaysBefore Int                 @default(7) @map("notification_days_before")
+  isActive              Boolean              @default(true) @map("is_active")
+  createdById           String               @map("created_by_id")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  // Relations
+  machine   Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("scheduled_maintenances")
+}
