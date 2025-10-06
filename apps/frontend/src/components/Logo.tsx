@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { Build } from '@mui/icons-material';
+import Image from 'next/image';
 
 interface LogoProps {
   collapsed?: boolean;
@@ -18,14 +18,19 @@ export default function Logo({ collapsed = false }: LogoProps) {
         py: 2,
       }}
     >
-      <Build sx={{ fontSize: 32, color: 'primary.main' }} />
+      <Image
+        src="/logo.png"
+        alt="CoreMachine Logo"
+        width={32}
+        height={32}
+        style={{ filter: 'invert(1)' }}
+      />
       {!collapsed && (
         <Typography
           variant="h6"
           component="div"
           sx={{
             fontWeight: 700,
-            color: 'text.primary',
           }}
         >
           CoreMachine

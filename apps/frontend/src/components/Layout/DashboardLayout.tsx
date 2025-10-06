@@ -31,14 +31,18 @@ import {
   Logout as LogoutIcon,
   ExpandLess,
   ExpandMore,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { usePathname, useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
 import UserAvatar from '@/components/UserAvatar';
 import GlobalSearch from '@/components/GlobalSearch';
+import MainFooterLogo from '@/components/MainFooterLogo';
 import { useAuthStore } from '@/store/authStore';
 
 const DRAWER_WIDTH = 280;
+const COLLAPSED_DRAWER_WIDTH = 70;
 
 interface NavigationItem {
   label: string;
@@ -100,6 +104,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
@@ -108,6 +113,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleSidebarToggle = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
   };
 
   const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -169,25 +178,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             mb: 0.5,
             mx: 1,
             borderRadius: 1,
+            '&:hover': {
+              bgcolor: 'grey.800',
+            },
             '&.Mui-selected': {
-              bgcolor: 'action.selected',
+              bgcolor: 'common.white',
+              color: 'common.black',
               '&:hover': {
-                bgcolor: 'action.selected',
+                bgcolor: 'common.white',
               },
             },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 40, color: isActive ? 'primary.main' : 'text.secondary' }}>
+          <ListItemIcon sx={{ minWidth: 40, color: isActive ? 'common.black' : 'inherit' }}>
             {item.icon}
           </ListItemIcon>
-          <ListItemText
-            primary={item.label}
-            primaryTypographyProps={{
-              fontSize: '0.875rem',
-              fontWeight: isActive ? 600 : 400,
-            }}
-          />
-          {hasChildren && (isExpanded ? <ExpandLess /> : <ExpandMore />)}
+          {!sidebarCollapsed && (
+            <ListItemText
+              primary={item.label}
+              primaryTypographyProps={{
+                fontSize: '0.875rem',
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? 'common.black' : 'inherit',
+              }}
+            />
+          )}
+          {hasChildren && (isExpanded ? <ExpandLess sx={{ color: isActive ? 'common.black' : 'inherit' }} /> : <ExpandMore sx={{ color: isActive ? 'common.black' : 'inherit' }} />)}
         </ListItemButton>
         {hasChildren && (
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
@@ -204,21 +220,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     mb: 0.5,
                     mx: 1,
                     borderRadius: 1,
+                    '&:hover': {
+                      bgcolor: 'grey.800',
+                    },
                     '&.Mui-selected': {
-                      bgcolor: 'action.selected',
+                      bgcolor: 'common.white',
+                      color: 'common.black',
                       '&:hover': {
-                        bgcolor: 'action.selected',
+                        bgcolor: 'common.white',
                       },
                     },
                   }}
                 >
-                  <ListItemText
-                    primary={child.label}
-                    primaryTypographyProps={{
-                      fontSize: '0.813rem',
-                      fontWeight: isItemActive(child.href) ? 600 : 400,
-                    }}
-                  />
+                  {!sidebarCollapsed && (
+                    <ListItemText
+                      primary={child.label}
+                      primaryTypographyProps={{
+                        fontSize: '0.813rem',
+                        fontWeight: isItemActive(child.href) ? 600 : 400,
+                        color: isItemActive(child.href) ? 'common.black' : 'inherit',
+                      }}
+                    />
+                  )}
                 </ListItemButton>
               ))}
             </List>
@@ -230,12 +253,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Logo />
-      <Divider />
+      <Box>
+        <Logo collapsed={sidebarCollapsed} />
+      </Box>
+      <Divider sx={{ borderColor: 'grey.800' }} />
       <Box sx={{ flex: 1, overflowY: 'auto', py: 2 }}>
         <List>{filterNavItems(navigationItems).map(renderNavItem)}</List>
       </Box>
-      <Divider />
+      <Divider sx={{ borderColor: 'grey.800' }} />
       {user && (
         <Box
           sx={{
@@ -245,32 +270,35 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             gap: 1.5,
             cursor: 'pointer',
             '&:hover': {
-              bgcolor: 'action.hover',
+              bgcolor: 'grey.800',
             },
           }}
           onClick={handleUserMenuOpen}
         >
           <UserAvatar user={user} size={40} />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2" fontWeight={600} noWrap>
-              {user.firstName} {user.lastName}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {user.role}
-            </Typography>
-          </Box>
+          {!sidebarCollapsed && (
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={600} noWrap>
+                {user.firstName} {user.lastName}
+              </Typography>
+              <Typography variant="caption" noWrap>
+                {user.role}
+              </Typography>
+            </Box>
+          )}
         </Box>
       )}
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }} className="dashboard-layout-container">
       <AppBar
         position="fixed"
         sx={{
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { md: `${DRAWER_WIDTH}px` },
+          width: { md: `calc(100% - ${sidebarCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH}px)` },
+          ml: { md: `${sidebarCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH}px` },
+          boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
         }}
       >
         <Toolbar>
@@ -282,6 +310,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           >
             <MenuIcon />
           </IconButton>
+          <IconButton
+            color="inherit"
+            aria-label="toggle sidebar"
+            onClick={handleSidebarToggle}
+            sx={{ mr: 2, display: { xs: 'none', md: 'block' } }}
+          >
+            {sidebarCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+          </IconButton>
           <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', px: 2 }}>
             <GlobalSearch />
           </Box>
@@ -290,7 +326,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <Box
         component="nav"
-        sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
+        sx={{
+          width: { md: sidebarCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH },
+          flexShrink: { md: 0 },
+        }}
       >
         <Drawer
           variant="temporary"
@@ -304,6 +343,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
+              boxShadow: '4px 0px 8px rgba(0, 0, 0, 0.1)',
+              bgcolor: 'primary.main',
+              color: 'common.white',
             },
           }}
         >
@@ -315,7 +357,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             display: { xs: 'none', md: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: DRAWER_WIDTH,
+              width: sidebarCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH,
+              boxShadow: '4px 0px 8px rgba(0, 0, 0, 0.1)',
+              bgcolor: 'primary.main',
+              color: 'common.white',
             },
           }}
           open
@@ -328,12 +373,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          width: { md: `calc(100% - ${sidebarCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH}px)` },
           mt: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
         }}
       >
-        {children}
+        <Box sx={{ flexGrow: 1, p: 3 }}>{children}</Box>
+
       </Box>
 
       <Menu

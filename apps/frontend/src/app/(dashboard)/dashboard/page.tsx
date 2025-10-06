@@ -17,6 +17,7 @@ import { DashboardStats, Maintenance, Machine } from '@/types';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import MainFooterLogo from '@/components/MainFooterLogo';
 
 interface StatCardProps {
   title: string;
@@ -290,6 +291,9 @@ export default function DashboardPage() {
           </Widget>
         </Grid>
       </Grid>
+      <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+        <MainFooterLogo opacity={0.8} />
+      </Box>
     </Box>
   );
 }

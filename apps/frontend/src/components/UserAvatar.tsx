@@ -35,7 +35,8 @@ export default function UserAvatar({ user, size = 40 }: UserAvatarProps) {
       sx={{
         width: size,
         height: size,
-        bgcolor: getColor(),
+        bgcolor: 'common.white',
+        color: 'common.black',
         fontSize: size * 0.4,
         fontWeight: 600,
       }}

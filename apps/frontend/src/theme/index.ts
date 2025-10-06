@@ -179,7 +179,7 @@ export const createAppTheme = (mode: 'light' | 'dark' = 'light') => {
         styleOverrides: {
           paper: {
             backgroundColor: isDarkMode ? common['black'] : common['white'],
-            border: `1px solid ${isDarkMode ? grey[800] : grey[300]}`,
+            border: 0,
           },
         },
       },
