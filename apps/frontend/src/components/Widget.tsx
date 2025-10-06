@@ -1,43 +1,46 @@
-import { Box, Paper, Typography, BoxProps } from '@mui/material';
+'use client';
+
+import { Paper, Typography, Box } from '@mui/material';
 import { ReactNode } from 'react';
 
-export interface WidgetProps {
-  title: string;
-  children?: ReactNode;
-  sx?: BoxProps['sx'];
-  contentHeight?: string;
+interface WidgetProps {
+  title?: string;
+  children: ReactNode;
+  action?: ReactNode;
+  elevation?: number;
+  sx?: any;
 }
 
-export const Widget = ({ title, children, sx, contentHeight }: WidgetProps) => {
+export default function Widget({ title, children, action, elevation = 0, sx }: WidgetProps) {
   return (
-    <Box
-      component={Paper}
+    <Paper
+      elevation={elevation}
       sx={{
-        border: (theme) => `1px solid ${theme.palette.divider}`,
-        padding: 2,
-        borderRadius: (theme) => theme.shape.borderRadius,
-        flex: 1,
-        justifyContent: 'space-between',
-        flexDirection: 'column',
+        p: 3,
         height: '100%',
         display: 'flex',
+        flexDirection: 'column',
         ...sx,
       }}
     >
-      <Box sx={{ marginBottom: 2 }}>
-        <Typography
+      {(title || action) && (
+        <Box
           sx={{
-            fontSize: (theme) => theme.typography.h6.fontSize,
-            fontWeight: (theme) => theme.typography.h6.fontWeight,
-            color: (theme) => theme.palette.text.primary,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: title ? 2 : 0,
           }}
         >
-          {title}
-        </Typography>
-      </Box>
-      <Box sx={{ flexGrow: 1, height: contentHeight }}>
-        <Box height={'100%'}>{children}</Box>
-      </Box>
-    </Box>
+          {title && (
+            <Typography variant="h6" component="h2" fontWeight={600}>
+              {title}
+            </Typography>
+          )}
+          {action && <Box>{action}</Box>}
+        </Box>
+      )}
+      <Box sx={{ flex: 1 }}>{children}</Box>
+    </Paper>
   );
-};
+}

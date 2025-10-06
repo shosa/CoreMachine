@@ -3,101 +3,135 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Container,
   Box,
-  Paper,
-  Typography,
+  Card,
   TextField,
   Button,
+  Typography,
+  Container,
   Alert,
+  CircularProgress,
 } from '@mui/material';
+import { Build } from '@mui/icons-material';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { useAuthStore } from '@/store/authStore';
-import api from '@/lib/axios';
+import axiosInstance from '@/lib/axios';
+import { LoginFormData, LoginResponse } from '@/types';
+import { useSnackbar } from 'notistack';
+
+const schema = yup.object({
+  email: yup.string().email('Email non valida').required('Email richiesta'),
+  password: yup.string().required('Password richiesta'),
+});
 
 export default function LoginPage() {
   const router = useRouter();
-  const setAuth = useAuthStore(state => state.setAuth);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { login } = useAuthStore();
+  const { enqueueSnackbar } = useSnackbar();
+  const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: yupResolver(schema),
+  });
 
+  const onSubmit = async (data: LoginFormData) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
-      const { access_token, user } = response.data;
-
-      setAuth(user, access_token);
+      setLoading(true);
+      setError('');
+      const response = await axiosInstance.post<LoginResponse>('/auth/login', data);
+      login(response.data.user, response.data.access_token);
+      enqueueSnackbar('Login effettuato con successo', { variant: 'success' });
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      const errorMessage = err.response?.data?.message || 'Errore durante il login';
+      setError(errorMessage);
+      enqueueSnackbar(errorMessage, { variant: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
-          <Typography variant="h4" component="h1" gutterBottom align="center">
-            CoreMachine
-          </Typography>
-          <Typography variant="subtitle1" gutterBottom align="center" color="text.secondary">
-            Gestione Parco Macchine
-          </Typography>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'background.default',
+      }}
+    >
+      <Container maxWidth="sm">
+        <Card
+          elevation={2}
+          sx={{
+            p: 4,
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              mb: 4,
+            }}
+          >
+            <Build sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+            <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
+              CoreMachine
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Gestione Macchinari e Manutenzioni
+            </Typography>
+          </Box>
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
 
+          <form onSubmit={handleSubmit(onSubmit)}>
             <TextField
               fullWidth
               label="Email"
               type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
               margin="normal"
+              {...register('email')}
+              error={!!errors.email}
+              helperText={errors.email?.message}
+              disabled={loading}
             />
-
             <TextField
               fullWidth
               label="Password"
               type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
               margin="normal"
+              {...register('password')}
+              error={!!errors.password}
+              helperText={errors.password?.message}
+              disabled={loading}
             />
-
             <Button
               type="submit"
               fullWidth
               variant="contained"
               size="large"
               disabled={loading}
-              sx={{ mt: 3 }}
+              sx={{ mt: 3, mb: 2 }}
             >
-              {loading ? 'Accesso...' : 'Accedi'}
+              {loading ? <CircularProgress size={24} /> : 'Accedi'}
             </Button>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+          </form>
+        </Card>
+      </Container>
+    </Box>
   );
 }

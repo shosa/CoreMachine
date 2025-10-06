@@ -1,54 +1,122 @@
 'use client';
 
-import { ReactNode, useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useState, ReactNode } from 'react';
 import {
+  AppBar,
   Box,
   Drawer,
-  AppBar,
-  Toolbar,
-  List,
-  Typography,
-  Divider,
   IconButton,
-  ListItem,
+  List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Avatar,
+  Toolbar,
+  Typography,
   Menu,
   MenuItem,
-  alpha,
-  Stack,
   Badge,
+  Divider,
+  Collapse,
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
-import BuildIcon from '@mui/icons-material/Build';
-import DescriptionIcon from '@mui/icons-material/Description';
-import PeopleIcon from '@mui/icons-material/People';
-import CategoryIcon from '@mui/icons-material/Category';
-import LogoutIcon from '@mui/icons-material/Logout';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import SettingsIcon from '@mui/icons-material/Settings';
+import {
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  PrecisionManufacturing as MachineIcon,
+  Build as MaintenanceIcon,
+  Description as DocumentIcon,
+  Category as CategoryIcon,
+  Label as TypeIcon,
+  People as UsersIcon,
+  Schedule as ScheduledIcon,
+  Notifications as NotificationsIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+  ExpandLess,
+  ExpandMore,
+} from '@mui/icons-material';
+import { usePathname, useRouter } from 'next/navigation';
+import Logo from '@/components/Logo';
+import UserAvatar from '@/components/UserAvatar';
 import { useAuthStore } from '@/store/authStore';
 
-const drawerWidth = 280;
+const DRAWER_WIDTH = 280;
 
-interface Props {
+interface NavigationItem {
+  label: string;
+  href: string;
+  icon: ReactNode;
+  roles?: string[];
+  children?: NavigationItem[];
+}
+
+const navigationItems: NavigationItem[] = [
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: <DashboardIcon />,
+  },
+  {
+    label: 'Macchinari',
+    href: '/machines',
+    icon: <MachineIcon />,
+  },
+  {
+    label: 'Manutenzioni',
+    href: '/maintenances',
+    icon: <MaintenanceIcon />,
+  },
+  {
+    label: 'Documenti',
+    href: '/documents',
+    icon: <DocumentIcon />,
+  },
+  {
+    label: 'Manutenzioni Programmate',
+    href: '/scheduled-maintenances',
+    icon: <ScheduledIcon />,
+  },
+  {
+    label: 'Categorie',
+    href: '/categories',
+    icon: <CategoryIcon />,
+    roles: ['admin'],
+  },
+  {
+    label: 'Tipi',
+    href: '/types',
+    icon: <TypeIcon />,
+    roles: ['admin'],
+  },
+  {
+    label: 'Utenti',
+    href: '/users',
+    icon: <UsersIcon />,
+    roles: ['admin'],
+  },
+];
+
+interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-export default function DashboardLayout({ children }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { user, logout, hasRole } = useAuthStore();
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout, hasRole } = useAuthStore();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
   };
 
   const handleLogout = () => {
@@ -56,110 +124,141 @@ export default function DashboardLayout({ children }: Props) {
     router.push('/login');
   };
 
-  const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['admin', 'tecnico', 'utente'] },
-    { text: 'Macchinari', icon: <PrecisionManufacturingIcon />, path: '/machines', roles: ['admin', 'tecnico', 'utente'] },
-    { text: 'Manutenzioni', icon: <BuildIcon />, path: '/maintenances', roles: ['admin', 'tecnico', 'utente'] },
-    { text: 'Documenti', icon: <DescriptionIcon />, path: '/documents', roles: ['admin', 'tecnico', 'utente'] },
-    { text: 'Categorie', icon: <CategoryIcon />, path: '/categories', roles: ['admin'] },
-    { text: 'Utenti', icon: <PeopleIcon />, path: '/users', roles: ['admin'] },
-  ];
+  const handleItemClick = (href: string) => {
+    router.push(href);
+    setMobileOpen(false);
+  };
 
-  const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' }}>
-      {/* Logo Section */}
-      <Box sx={{ p: 3, pb: 2 }}>
-        <Typography
-          variant="h5"
-          fontWeight={800}
-          color="primary.main"
+  const handleExpandClick = (label: string) => {
+    setExpandedItems((prev) =>
+      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
+    );
+  };
+
+  const isItemActive = (href: string) => {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const filterNavItems = (items: NavigationItem[]): NavigationItem[] => {
+    return items.filter((item) => {
+      if (item.roles && item.roles.length > 0) {
+        return hasRole(item.roles as any);
+      }
+      return true;
+    });
+  };
+
+  const renderNavItem = (item: NavigationItem) => {
+    const hasChildren = item.children && item.children.length > 0;
+    const isExpanded = expandedItems.includes(item.label);
+    const isActive = isItemActive(item.href);
+
+    return (
+      <Box key={item.label}>
+        <ListItemButton
+          onClick={() => {
+            if (hasChildren) {
+              handleExpandClick(item.label);
+            } else {
+              handleItemClick(item.href);
+            }
+          }}
+          selected={isActive && !hasChildren}
+          sx={{
+            py: 1.25,
+            px: 2,
+            mb: 0.5,
+            mx: 1,
+            borderRadius: 1,
+            '&.Mui-selected': {
+              bgcolor: 'action.selected',
+              '&:hover': {
+                bgcolor: 'action.selected',
+              },
+            },
+          }}
         >
-          CoreMachine
-        </Typography>
-        <Typography variant="caption" color="text.secondary" fontWeight={600}>
-          Gestione Parco Macchine
-        </Typography>
-      </Box>
-
-      <Divider />
-
-      {/* Navigation */}
-      <List sx={{ flex: 1, px: 2, py: 2 }}>
-        {menuItems
-          .filter(item => hasRole(item.roles))
-          .map(item => {
-            const isActive = pathname === item.path;
-            return (
-              <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+          <ListItemIcon sx={{ minWidth: 40, color: isActive ? 'primary.main' : 'text.secondary' }}>
+            {item.icon}
+          </ListItemIcon>
+          <ListItemText
+            primary={item.label}
+            primaryTypographyProps={{
+              fontSize: '0.875rem',
+              fontWeight: isActive ? 600 : 400,
+            }}
+          />
+          {hasChildren && (isExpanded ? <ExpandLess /> : <ExpandMore />)}
+        </ListItemButton>
+        {hasChildren && (
+          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              {item.children?.map((child) => (
                 <ListItemButton
-                  onClick={() => router.push(item.path)}
+                  key={child.label}
+                  onClick={() => handleItemClick(child.href)}
+                  selected={isItemActive(child.href)}
                   sx={{
+                    py: 1,
+                    pl: 7,
+                    pr: 2,
+                    mb: 0.5,
+                    mx: 1,
                     borderRadius: 1,
-                    py: 1.5,
-                    bgcolor: isActive ? theme => alpha(theme.palette.primary.main, 0.12) : 'transparent',
-                    color: isActive ? 'primary.main' : 'text.secondary',
-                    fontWeight: isActive ? 600 : 400,
-                    '&:hover': {
-                      bgcolor: theme => alpha(theme.palette.primary.main, 0.08),
+                    '&.Mui-selected': {
+                      bgcolor: 'action.selected',
+                      '&:hover': {
+                        bgcolor: 'action.selected',
+                      },
                     },
-                    transition: 'all 0.2s ease-in-out',
                   }}
                 >
-                  <ListItemIcon
-                    sx={{
-                      color: 'inherit',
-                      minWidth: 40,
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
                   <ListItemText
-                    primary={item.text}
+                    primary={child.label}
                     primaryTypographyProps={{
-                      fontSize: '0.95rem',
-                      fontWeight: 'inherit',
+                      fontSize: '0.813rem',
+                      fontWeight: isItemActive(child.href) ? 600 : 400,
                     }}
                   />
                 </ListItemButton>
-              </ListItem>
-            );
-          })}
-      </List>
+              ))}
+            </List>
+          </Collapse>
+        )}
+      </Box>
+    );
+  };
 
+  const drawer = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Logo />
       <Divider />
-
-      {/* User Info at Bottom */}
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 2 }}>
+        <List>{filterNavItems(navigationItems).map(renderNavItem)}</List>
+      </Box>
+      <Divider />
       {user && (
-        <Box sx={{ p: 2 }}>
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: 1,
-              bgcolor: theme => alpha(theme.palette.primary.main, 0.05),
-              border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-            }}
-          >
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Avatar
-                sx={{
-                  width: 40,
-                  height: 40,
-                  bgcolor: 'primary.main',
-                  fontWeight: 600,
-                }}
-              >
-                {user.firstName[0]}
-                {user.lastName[0]}
-              </Avatar>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="body2" fontWeight={600} noWrap>
-                  {user.firstName} {user.lastName}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {user.role}
-                </Typography>
-              </Box>
-            </Stack>
+        <Box
+          sx={{
+            p: 2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            cursor: 'pointer',
+            '&:hover': {
+              bgcolor: 'action.hover',
+            },
+          }}
+          onClick={handleUserMenuOpen}
+        >
+          <UserAvatar user={user} size={40} />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {user.firstName} {user.lastName}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {user.role}
+            </Typography>
           </Box>
         </Box>
       )}
@@ -168,15 +267,11 @@ export default function DashboardLayout({ children }: Props) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* AppBar */}
       <AppBar
         position="fixed"
-        elevation={0}
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          bgcolor: 'background.paper',
-          borderBottom: theme => `1px solid ${theme.palette.divider}`,
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          ml: { md: `${DRAWER_WIDTH}px` },
         }}
       >
         <Toolbar>
@@ -184,106 +279,50 @@ export default function DashboardLayout({ children }: Props) {
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' }, color: 'text.primary' }}
+            sx={{ mr: 2, display: { md: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
-
           <Box sx={{ flexGrow: 1 }} />
-
-          {/* Right side icons */}
-          <Stack direction="row" spacing={1} alignItems="center">
-            <IconButton color="inherit" sx={{ color: 'text.secondary' }}>
-              <Badge badgeContent={3} color="error">
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
-
-            <IconButton color="inherit" sx={{ color: 'text.secondary' }}>
-              <SettingsIcon />
-            </IconButton>
-
-            {user && (
-              <>
-                <IconButton onClick={e => setAnchorEl(e.currentTarget)} sx={{ ml: 1 }}>
-                  <Avatar
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      bgcolor: 'primary.main',
-                      border: theme => `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                    }}
-                  >
-                    {user.firstName[0]}
-                    {user.lastName[0]}
-                  </Avatar>
-                </IconButton>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl)}
-                  onClose={() => setAnchorEl(null)}
-                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-                  PaperProps={{
-                    elevation: 3,
-                    sx: {
-                      mt: 1.5,
-                      minWidth: 200,
-                      borderRadius: 1,
-                    },
-                  }}
-                >
-                  <Box sx={{ px: 2, py: 1.5 }}>
-                    <Typography variant="subtitle2" fontWeight={600}>
-                      {user.firstName} {user.lastName}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {user.email}
-                    </Typography>
-                  </Box>
-                  <Divider />
-                  <MenuItem onClick={handleLogout} sx={{ mt: 1, color: 'error.main' }}>
-                    <ListItemIcon>
-                      <LogoutIcon fontSize="small" color="error" />
-                    </ListItemIcon>
-                    Logout
-                  </MenuItem>
-                </Menu>
-              </>
-            )}
-          </Stack>
+          <IconButton color="inherit">
+            <Badge badgeContent={0} color="error">
+              <NotificationsIcon />
+            </Badge>
+          </IconButton>
+          <IconButton color="inherit">
+            <SettingsIcon />
+          </IconButton>
         </Toolbar>
       </AppBar>
 
-      {/* Drawer */}
-      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
-        {/* Mobile drawer */}
+      <Box
+        component="nav"
+        sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
+      >
         <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
+          ModalProps={{
+            keepMounted: true,
+          }}
           sx={{
-            display: { xs: 'block', sm: 'none' },
+            display: { xs: 'block', md: 'none' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: drawerWidth,
-              borderRight: 'none',
+              width: DRAWER_WIDTH,
             },
           }}
         >
           {drawer}
         </Drawer>
-
-        {/* Desktop drawer */}
         <Drawer
           variant="permanent"
           sx={{
-            display: { xs: 'none', sm: 'block' },
+            display: { xs: 'none', md: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: drawerWidth,
-              borderRight: theme => `1px solid ${theme.palette.divider}`,
+              width: DRAWER_WIDTH,
             },
           }}
           open
@@ -292,20 +331,32 @@ export default function DashboardLayout({ children }: Props) {
         </Drawer>
       </Box>
 
-      {/* Main content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          bgcolor: 'background.default',
-          minHeight: '100vh',
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          mt: 8,
         }}
       >
-        <Toolbar />
         {children}
       </Box>
+
+      <Menu
+        anchorEl={userMenuAnchor}
+        open={Boolean(userMenuAnchor)}
+        onClose={handleUserMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
+      >
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Logout</ListItemText>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }
