@@ -158,4 +158,64 @@ export class MaintenancesService {
 
     return { message: 'Maintenance deleted successfully' };
   }
+
+  async search(query: string) {
+    if (!query || query.length < 2) {
+      return [];
+    }
+
+    const searchPattern = `%${query}%`;
+
+    // Use raw SQL for case-insensitive search in MySQL
+    const results = await this.prisma.$queryRaw`
+      SELECT
+        maint.id,
+        maint.date,
+        maint.type,
+        maint.problem_description as problemDescription,
+        maint.work_performed as workPerformed,
+        maint.spare_parts as spareParts,
+        maint.cost,
+        m.id as machineId,
+        m.serial_number as machineSerialNumber,
+        m.description as machineDescription,
+        u.id as operatorId,
+        u.first_name as operatorFirstName,
+        u.last_name as operatorLastName
+      FROM maintenances maint
+      LEFT JOIN machines m ON maint.machine_id = m.id
+      LEFT JOIN users u ON maint.operator_id = u.id
+      WHERE
+        maint.work_performed LIKE ${searchPattern}
+        OR maint.problem_description LIKE ${searchPattern}
+        OR maint.spare_parts LIKE ${searchPattern}
+        OR m.serial_number LIKE ${searchPattern}
+        OR m.description LIKE ${searchPattern}
+        OR m.manufacturer LIKE ${searchPattern}
+        OR m.model LIKE ${searchPattern}
+      ORDER BY maint.date DESC
+      LIMIT 10
+    `;
+
+    // Transform results to match expected format
+    return (results as any[]).map((row) => ({
+      id: row.id,
+      date: row.date,
+      type: row.type,
+      problemDescription: row.problemDescription,
+      workPerformed: row.workPerformed,
+      spareParts: row.spareParts,
+      cost: row.cost,
+      machine: {
+        id: row.machineId,
+        serialNumber: row.machineSerialNumber,
+        description: row.machineDescription,
+      },
+      operator: {
+        id: row.operatorId,
+        firstName: row.operatorFirstName,
+        lastName: row.operatorLastName,
+      },
+    }));
+  }
 }

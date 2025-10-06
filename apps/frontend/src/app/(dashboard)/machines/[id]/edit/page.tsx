@@ -22,7 +22,7 @@ import { MachineFormData, Type, Machine } from '@/types';
 
 const schema = yup.object({
   typeId: yup.string().required('Tipo richiesto'),
-  serialNumber: yup.string().required('Numero seriale richiesto'),
+  serialNumber: yup.string().required('Matricola richiesta'),
   description: yup.string(),
   manufacturer: yup.string(),
   model: yup.string(),
@@ -147,7 +147,7 @@ export default function EditMachinePage() {
                   <TextField
                     {...field}
                     fullWidth
-                    label="Numero Seriale *"
+                    label="Matricola *"
                     error={!!errors.serialNumber}
                     helperText={errors.serialNumber?.message}
                   />

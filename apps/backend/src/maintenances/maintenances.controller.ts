@@ -34,6 +34,11 @@ export class MaintenancesController {
     return this.maintenancesService.findAll({ machineId, operatorId });
   }
 
+  @Get('search')
+  search(@Query('q') query: string) {
+    return this.maintenancesService.search(query);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.maintenancesService.findOne(id);

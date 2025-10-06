@@ -28,8 +28,6 @@ import {
   Label as TypeIcon,
   People as UsersIcon,
   Schedule as ScheduledIcon,
-  Notifications as NotificationsIcon,
-  Settings as SettingsIcon,
   Logout as LogoutIcon,
   ExpandLess,
   ExpandMore,
@@ -37,6 +35,7 @@ import {
 import { usePathname, useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
 import UserAvatar from '@/components/UserAvatar';
+import GlobalSearch from '@/components/GlobalSearch';
 import { useAuthStore } from '@/store/authStore';
 
 const DRAWER_WIDTH = 280;
@@ -283,15 +282,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           >
             <MenuIcon />
           </IconButton>
-          <Box sx={{ flexGrow: 1 }} />
-          <IconButton color="inherit">
-            <Badge badgeContent={0} color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-          <IconButton color="inherit">
-            <SettingsIcon />
-          </IconButton>
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', px: 2 }}>
+            <GlobalSearch />
+          </Box>
         </Toolbar>
       </AppBar>
 

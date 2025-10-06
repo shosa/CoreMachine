@@ -14,7 +14,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "meilisearch:reindex": "ts-node src/scripts/reindex-machines.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts",

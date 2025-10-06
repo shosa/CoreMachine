@@ -329,7 +329,11 @@ export default function MachineDetailPage() {
     <Box>
       <PageHeader
         title={machine.description || `Macchinario ${machine.serialNumber}`}
-        breadcrumbs={['Dashboard', 'Macchinari', machine.serialNumber]}
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Macchinari', href: '/machines' },
+          { label: machine.serialNumber },
+        ]}
       />
 
       {/* Header Card con info principali */}
@@ -361,7 +365,7 @@ export default function MachineDetailPage() {
                 <Grid container spacing={2}>
                   <Grid item xs={6} sm={3}>
                     <Typography variant="caption" color="text.secondary" display="block">
-                      Numero Seriale
+                      Matricola
                     </Typography>
                     <Typography variant="body1" fontWeight={600}>
                       {machine.serialNumber}

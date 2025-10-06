@@ -1,13 +1,17 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MeiliSearch } from 'meilisearch';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class MeilisearchService implements OnModuleInit {
   private client: MeiliSearch;
   private readonly indexName = 'machines';
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private prisma: PrismaService,
+  ) {
     this.client = new MeiliSearch({
       host: this.configService.get<string>('MEILISEARCH_HOST') || 'http://localhost:7700',
       apiKey: this.configService.get<string>('MEILISEARCH_API_KEY') || '',
@@ -17,12 +21,15 @@ export class MeilisearchService implements OnModuleInit {
   async onModuleInit() {
     try {
       // Create or get index
-      await this.client.getIndex(this.indexName).catch(async () => {
+      let index;
+      try {
+        index = await this.client.getIndex(this.indexName);
+      } catch (error) {
         await this.client.createIndex(this.indexName, { primaryKey: 'id' });
-      });
+        index = this.client.index(this.indexName);
+      }
 
       // Configure searchable attributes
-      const index = this.client.index(this.indexName);
       await index.updateSearchableAttributes([
         'serialNumber',
         'description',
@@ -35,8 +42,49 @@ export class MeilisearchService implements OnModuleInit {
       await index.updateFilterableAttributes(['typeId', 'categoryId']);
 
       console.log('✅ Meilisearch index configured');
+
+      // Sync all existing machines on startup
+      await this.syncAllMachines();
     } catch (error) {
       console.error('❌ Meilisearch initialization error:', (error as any).message);
+    }
+  }
+
+  async syncAllMachines() {
+    try {
+      const machines = await this.prisma.machine.findMany({
+        include: {
+          type: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      });
+
+      if (machines.length === 0) {
+        console.log('⚠️  No machines to sync to Meilisearch');
+        return;
+      }
+
+      const documents = machines.map((machine) => ({
+        id: machine.id,
+        serialNumber: machine.serialNumber,
+        description: machine.description,
+        manufacturer: machine.manufacturer,
+        model: machine.model,
+        dealer: machine.dealer || '',
+        invoiceReference: machine.invoiceReference || '',
+        typeId: machine.typeId,
+        categoryId: machine.type?.categoryId || '',
+      }));
+
+      const index = this.client.index(this.indexName);
+      await index.addDocuments(documents, { primaryKey: 'id' });
+
+      console.log(`✅ Synced ${machines.length} machines to Meilisearch`);
+    } catch (error) {
+      console.error('❌ Meilisearch sync error:', (error as any).message);
     }
   }
 

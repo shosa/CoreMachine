@@ -14,7 +14,10 @@
       "Bash(git rm:*)",
       "Bash(npm install)",
       "Bash(cd:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

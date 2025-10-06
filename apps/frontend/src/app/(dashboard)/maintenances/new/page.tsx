@@ -149,7 +149,7 @@ export default function NewMaintenancePage() {
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap">
                 <Chip
-                  label={`S/N: ${selectedMachine.serialNumber}`}
+                  label={`Matr.: ${selectedMachine.serialNumber}`}
                   size="small"
                   variant="outlined"
                 />

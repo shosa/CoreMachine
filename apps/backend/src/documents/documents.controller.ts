@@ -43,6 +43,11 @@ export class DocumentsController {
     return this.documentsService.findAll(machineId);
   }
 
+  @Get('search')
+  search(@Query('q') query: string) {
+    return this.documentsService.search(query);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.documentsService.findOne(id);

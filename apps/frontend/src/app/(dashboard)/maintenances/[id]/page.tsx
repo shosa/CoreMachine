@@ -99,7 +99,11 @@ export default function MaintenanceDetailPage() {
     <Box>
       <PageHeader
         title="Dettaglio Manutenzione"
-        breadcrumbs={['Dashboard', 'Manutenzioni', `#${maintenance.id}`]}
+        breadcrumbs={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Manutenzioni', href: '/maintenances' },
+          { label: `Manutenzione #${maintenance.id.slice(0, 8)}` },
+        ]}
       />
 
       {/* Header Card */}
@@ -109,7 +113,7 @@ export default function MaintenanceDetailPage() {
             <Box>
               <Stack direction="row" spacing={2} alignItems="center" mb={1}>
                 <Typography variant="h4" fontWeight={700}>
-                  Manutenzione #{maintenance.id}
+                  Manutenzione #{maintenance.id.slice(0, 8)}
                 </Typography>
                 <Chip
                   label={getMaintenanceTypeLabel(maintenance.type)}
@@ -273,7 +277,7 @@ export default function MaintenanceDetailPage() {
                   </Typography>
                   <Stack direction="row" spacing={1} mt={1}>
                     <Chip
-                      label={`S/N: ${maintenance.machine?.serialNumber}`}
+                      label={`Matr.: ${maintenance.machine?.serialNumber}`}
                       size="small"
                       variant="outlined"
                     />

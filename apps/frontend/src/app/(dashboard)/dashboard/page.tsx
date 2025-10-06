@@ -13,7 +13,7 @@ import PageHeader from '@/components/PageHeader';
 import Widget from '@/components/Widget';
 import axiosInstance from '@/lib/axios';
 import { useSnackbar } from 'notistack';
-import { DashboardStats, Maintenance } from '@/types';
+import { DashboardStats, Maintenance, Machine } from '@/types';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -68,6 +68,7 @@ function StatCard({ title, value, icon, color, trend }: StatCardProps) {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentMaintenances, setRecentMaintenances] = useState<Maintenance[]>([]);
+  const [recentMachines, setRecentMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
   const { enqueueSnackbar } = useSnackbar();
 
@@ -98,10 +99,17 @@ export default function DashboardPage() {
 
       // Get recent maintenances (last 5)
       const allMaintenances = Array.isArray(maintenancesRes.data) ? maintenancesRes.data : [];
-      const sorted = [...allMaintenances].sort((a, b) =>
+      const sortedMaintenances = [...allMaintenances].sort((a, b) =>
         new Date(b.date).getTime() - new Date(a.date).getTime()
       );
-      setRecentMaintenances(sorted.slice(0, 5));
+      setRecentMaintenances(sortedMaintenances.slice(0, 5));
+
+      // Get recent machines (last 5)
+      const allMachines = Array.isArray(machinesRes.data) ? machinesRes.data : [];
+      const sortedMachines = [...allMachines].sort((a, b) =>
+        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+      setRecentMachines(sortedMachines.slice(0, 5));
     } catch (error: any) {
       enqueueSnackbar('Errore nel caricamento dei dati', { variant: 'error' });
       console.error('Dashboard error:', error);
@@ -109,6 +117,36 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+
+  const machineColumns: GridColDef[] = [
+    {
+      field: 'serialNumber',
+      headerName: 'Matricola',
+      width: 150,
+    },
+    {
+      field: 'description',
+      headerName: 'Descrizione',
+      flex: 1,
+      minWidth: 200,
+    },
+    {
+      field: 'manufacturer',
+      headerName: 'Produttore',
+      width: 150,
+    },
+    {
+      field: 'model',
+      headerName: 'Modello',
+      width: 150,
+    },
+    {
+      field: 'type',
+      headerName: 'Tipo',
+      width: 150,
+      valueGetter: (value, row) => row.type?.name || '-',
+    },
+  ];
 
   const maintenanceColumns: GridColDef[] = [
     {
@@ -123,7 +161,14 @@ export default function DashboardPage() {
       field: 'machine',
       headerName: 'Macchinario',
       flex: 1,
-      valueGetter: (value, row) => row.machine?.serialNumber || '-',
+      minWidth: 200,
+      valueGetter: (value, row) => {
+        const machine = row.machine;
+        if (!machine) return '-';
+        const model = machine.model || machine.manufacturer || '';
+        const serial = machine.serialNumber || '';
+        return model ? `${model} (${serial})` : serial;
+      },
     },
     {
       field: 'type',
@@ -201,7 +246,29 @@ export default function DashboardPage() {
           />
         </Grid>
 
-        <Grid item xs={12}>
+        <Grid item xs={12} md={6}>
+          <Widget title="Ultimi Macchinari Aggiunti">
+            <DataGrid
+              rows={recentMachines}
+              columns={machineColumns}
+              autoHeight
+              pageSizeOptions={[5]}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 5 } },
+              }}
+              disableRowSelectionOnClick
+              sx={{
+                border: 0,
+                '& .MuiDataGrid-cell': {
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                },
+              }}
+            />
+          </Widget>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
           <Widget title="Manutenzioni Recenti">
             <DataGrid
               rows={recentMaintenances}

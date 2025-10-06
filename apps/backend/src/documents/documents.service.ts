@@ -138,4 +138,51 @@ export class DocumentsService {
 
     return { message: 'Document deleted successfully' };
   }
+
+  async search(query: string) {
+    if (!query || query.length < 2) {
+      return [];
+    }
+
+    const searchPattern = `%${query}%`;
+
+    // Use raw SQL for case-insensitive search in MySQL
+    const results = await this.prisma.$queryRaw`
+      SELECT
+        d.id,
+        d.file_name as fileName,
+        d.file_path as filePath,
+        d.file_size as fileSize,
+        d.mime_type as mimeType,
+        d.document_category as documentCategory,
+        d.uploaded_at as uploadedAt,
+        m.id as machineId,
+        m.serial_number as machineSerialNumber,
+        m.description as machineDescription
+      FROM documents d
+      LEFT JOIN machines m ON d.machine_id = m.id
+      WHERE
+        d.file_name LIKE ${searchPattern}
+        OR m.serial_number LIKE ${searchPattern}
+        OR m.description LIKE ${searchPattern}
+      ORDER BY d.uploaded_at DESC
+      LIMIT 10
+    `;
+
+    // Transform results to match expected format
+    return (results as any[]).map((row) => ({
+      id: row.id,
+      fileName: row.fileName,
+      filePath: row.filePath,
+      fileSize: row.fileSize,
+      mimeType: row.mimeType,
+      documentCategory: row.documentCategory,
+      uploadedAt: row.uploadedAt,
+      machine: {
+        id: row.machineId,
+        serialNumber: row.machineSerialNumber,
+        description: row.machineDescription,
+      },
+    }));
+  }
 }
