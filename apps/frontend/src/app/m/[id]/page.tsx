@@ -5,20 +5,33 @@ import { useParams } from 'next/navigation';
 import {
   Container,
   Paper,
+  Card,
+  CardContent,
   Typography,
   Box,
   Button,
   TextField,
   MenuItem,
   CircularProgress,
+  Stack,
+  Divider,
 } from '@mui/material';
-import { useSnackbar } from 'notistack';
+import QrCodeIcon from '@mui/icons-material/QrCode';
+import BuildIcon from '@mui/icons-material/Build';
+import { enqueueSnackbar } from 'notistack';
 import api from '@/lib/axios';
+
+interface Machine {
+  id: string;
+  description: string;
+  serialNumber: string;
+  manufacturer: string;
+  model: string;
+}
 
 export default function MachineQRPage() {
   const params = useParams();
-  const { enqueueSnackbar } = useSnackbar();
-  const [machine, setMachine] = useState<any>(null);
+  const [machine, setMachine] = useState<Machine | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -74,7 +87,7 @@ export default function MachineQRPage() {
 
   if (loading) {
     return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+      <Container maxWidth="md" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <CircularProgress />
       </Container>
     );
@@ -82,104 +95,172 @@ export default function MachineQRPage() {
 
   if (!machine) {
     return (
-      <Container sx={{ mt: 4 }}>
-        <Typography>Macchina non trovata</Typography>
+      <Container maxWidth="md" sx={{ mt: 8 }}>
+        <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 1 }}>
+          <Typography variant="h5" color="error">
+            Macchina non trovata
+          </Typography>
+        </Paper>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          {machine.description}
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      {/* Header Card */}
+      <Card elevation={2} sx={{ mb: 3, borderRadius: 1 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+            <QrCodeIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+            <Box>
+              <Typography variant="h5" fontWeight={600}>
+                {machine.description}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Accesso rapido tramite QR Code
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Stack spacing={1}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Matricola
+              </Typography>
+              <Typography variant="body1" fontWeight={500}>
+                {machine.serialNumber}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Costruttore
+              </Typography>
+              <Typography variant="body1" fontWeight={500}>
+                {machine.manufacturer}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Modello
+              </Typography>
+              <Typography variant="body1" fontWeight={500}>
+                {machine.model}
+              </Typography>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* Maintenance Form Card */}
+      <Card elevation={2} sx={{ borderRadius: 1 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" mb={3}>
+            <BuildIcon sx={{ color: 'primary.main' }} />
+            <Typography variant="h6" fontWeight={600}>
+              Registra Manutenzione
+            </Typography>
+          </Stack>
+
+          <Box component="form" onSubmit={handleSubmit}>
+            <Stack spacing={2.5}>
+              <TextField
+                select
+                fullWidth
+                label="Tipo Manutenzione"
+                value={formData.type}
+                onChange={e => setFormData({ ...formData, type: e.target.value })}
+                required
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+              >
+                <MenuItem value="ordinaria">Ordinaria</MenuItem>
+                <MenuItem value="straordinaria">Straordinaria</MenuItem>
+                <MenuItem value="guasto">Guasto</MenuItem>
+                <MenuItem value="riparazione">Riparazione</MenuItem>
+              </TextField>
+
+              <TextField
+                fullWidth
+                type="date"
+                label="Data Intervento"
+                value={formData.date}
+                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                required
+                InputLabelProps={{ shrink: true }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+              />
+
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Lavori Eseguiti"
+                value={formData.workPerformed}
+                onChange={e => setFormData({ ...formData, workPerformed: e.target.value })}
+                required
+                placeholder="Descrivi i lavori eseguiti..."
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+              />
+
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Descrizione Problema"
+                value={formData.problemDescription}
+                onChange={e => setFormData({ ...formData, problemDescription: e.target.value })}
+                placeholder="Descrivi il problema riscontrato (opzionale)..."
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+              />
+
+              <TextField
+                fullWidth
+                label="Ricambi Utilizzati"
+                value={formData.spareParts}
+                onChange={e => setFormData({ ...formData, spareParts: e.target.value })}
+                placeholder="Elenca i ricambi utilizzati (opzionale)..."
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+              />
+
+              <TextField
+                fullWidth
+                type="number"
+                label="Costo Intervento (€)"
+                value={formData.cost}
+                onChange={e => setFormData({ ...formData, cost: e.target.value })}
+                inputProps={{ step: '0.01', min: '0' }}
+                placeholder="0.00"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+              />
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={submitting}
+                sx={{
+                  mt: 2,
+                  borderRadius: 1,
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                }}
+              >
+                {submitting ? 'Salvataggio in corso...' : 'Salva Manutenzione'}
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Footer Info */}
+      <Box sx={{ mt: 3, textAlign: 'center' }}>
+        <Typography variant="caption" color="text.secondary">
+          CoreMachine - Sistema di Gestione Parco Macchine
         </Typography>
-        <Typography color="text.secondary" gutterBottom>
-          Matricola: {machine.serialNumber}
-        </Typography>
-        <Typography color="text.secondary" gutterBottom>
-          Costruttore: {machine.manufacturer} - Modello: {machine.model}
-        </Typography>
-
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Registra Manutenzione
-          </Typography>
-
-          <TextField
-            select
-            fullWidth
-            label="Tipo"
-            value={formData.type}
-            onChange={e => setFormData({ ...formData, type: e.target.value })}
-            margin="normal"
-          >
-            <MenuItem value="ordinaria">Ordinaria</MenuItem>
-            <MenuItem value="straordinaria">Straordinaria</MenuItem>
-            <MenuItem value="guasto">Guasto</MenuItem>
-            <MenuItem value="riparazione">Riparazione</MenuItem>
-          </TextField>
-
-          <TextField
-            fullWidth
-            type="date"
-            label="Data"
-            value={formData.date}
-            onChange={e => setFormData({ ...formData, date: e.target.value })}
-            margin="normal"
-            InputLabelProps={{ shrink: true }}
-          />
-
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Lavori Eseguiti"
-            value={formData.workPerformed}
-            onChange={e => setFormData({ ...formData, workPerformed: e.target.value })}
-            required
-            margin="normal"
-          />
-
-          <TextField
-            fullWidth
-            multiline
-            rows={2}
-            label="Descrizione Problema (opzionale)"
-            value={formData.problemDescription}
-            onChange={e => setFormData({ ...formData, problemDescription: e.target.value })}
-            margin="normal"
-          />
-
-          <TextField
-            fullWidth
-            label="Ricambi Utilizzati (opzionale)"
-            value={formData.spareParts}
-            onChange={e => setFormData({ ...formData, spareParts: e.target.value })}
-            margin="normal"
-          />
-
-          <TextField
-            fullWidth
-            type="number"
-            label="Costo (€) (opzionale)"
-            value={formData.cost}
-            onChange={e => setFormData({ ...formData, cost: e.target.value })}
-            margin="normal"
-          />
-
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            size="large"
-            disabled={submitting}
-            sx={{ mt: 3 }}
-          >
-            {submitting ? 'Salvataggio...' : 'Salva Manutenzione'}
-          </Button>
-        </Box>
-      </Paper>
+      </Box>
     </Container>
   );
 }

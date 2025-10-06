@@ -7,6 +7,7 @@
     "prebuild": "rimraf dist",
     "build": "nest build",
     "dev": "nest start --watch",
+    "dev:debug": "nest start --debug --watch",
     "start": "node dist/main",
     "start:prod": "node dist/main",
     "prisma:generate": "prisma generate",
@@ -16,7 +17,8 @@
     "prisma:seed": "ts-node prisma/seed.ts"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts",
+    "schema": "prisma/schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

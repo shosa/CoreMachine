@@ -46,11 +46,6 @@ export default function DashboardLayout({ children }: Props) {
   const { user, logout, hasRole } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -70,20 +65,14 @@ export default function DashboardLayout({ children }: Props) {
     { text: 'Utenti', icon: <PeopleIcon />, path: '/users', roles: ['admin'] },
   ];
 
-  const drawer = mounted ? (
+  const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' }}>
       {/* Logo Section */}
       <Box sx={{ p: 3, pb: 2 }}>
         <Typography
           variant="h5"
           fontWeight={800}
-          sx={{
-            background: theme =>
-              `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
+          color="primary.main"
         >
           CoreMachine
         </Typography>
@@ -105,7 +94,7 @@ export default function DashboardLayout({ children }: Props) {
                 <ListItemButton
                   onClick={() => router.push(item.path)}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: 1,
                     py: 1.5,
                     bgcolor: isActive ? theme => alpha(theme.palette.primary.main, 0.12) : 'transparent',
                     color: isActive ? 'primary.main' : 'text.secondary',
@@ -140,12 +129,12 @@ export default function DashboardLayout({ children }: Props) {
       <Divider />
 
       {/* User Info at Bottom */}
-      {mounted && user && (
+      {user && (
         <Box sx={{ p: 2 }}>
           <Box
             sx={{
               p: 2,
-              borderRadius: 2,
+              borderRadius: 1,
               bgcolor: theme => alpha(theme.palette.primary.main, 0.05),
               border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
             }}
@@ -175,7 +164,7 @@ export default function DashboardLayout({ children }: Props) {
         </Box>
       )}
     </Box>
-  ) : null;
+  );
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -214,7 +203,7 @@ export default function DashboardLayout({ children }: Props) {
               <SettingsIcon />
             </IconButton>
 
-            {mounted && user && (
+            {user && (
               <>
                 <IconButton onClick={e => setAnchorEl(e.currentTarget)} sx={{ ml: 1 }}>
                   <Avatar
@@ -240,7 +229,7 @@ export default function DashboardLayout({ children }: Props) {
                     sx: {
                       mt: 1.5,
                       minWidth: 200,
-                      borderRadius: 2,
+                      borderRadius: 1,
                     },
                   }}
                 >

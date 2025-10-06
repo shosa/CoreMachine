@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Box,
-  Typography,
+  Container,
+  Paper,
   Button,
   Card,
   TextField,
@@ -12,7 +12,6 @@ import {
   Grid,
   Chip,
   IconButton,
-  alpha,
   Stack,
   InputAdornment,
 } from '@mui/material';
@@ -27,13 +26,14 @@ import QrCodeIcon from '@mui/icons-material/QrCode';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import { PageHeader } from '@/components/PageHeader';
+import DashboardLayout from '@/components/Layout/DashboardLayout';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/axios';
 import { enqueueSnackbar } from 'notistack';
 
 interface Machine {
   id: string;
-  name: string;
   model: string;
   manufacturer: string;
   serialNumber: string;
@@ -134,7 +134,6 @@ export default function MachinesPage() {
 
   const filteredMachines = machines.filter(machine => {
     const matchesSearch =
-      machine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       machine.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
       machine.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       machine.serialNumber.toLowerCase().includes(searchTerm.toLowerCase());
@@ -151,17 +150,7 @@ export default function MachinesPage() {
     : types;
 
   const columns: GridColDef[] = [
-    {
-      field: 'name',
-      headerName: 'Nome',
-      flex: 1,
-      minWidth: 150,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontWeight={600}>
-          {params.value}
-        </Typography>
-      ),
-    },
+    
     {
       field: 'manufacturer',
       headerName: 'Produttore',
@@ -249,66 +238,29 @@ export default function MachinesPage() {
   ];
 
   return (
-    <Box>
-      {/* Header with gradient */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography
-            variant="h3"
-            fontWeight={700}
-            sx={{
-              background: theme =>
-                `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            Macchinari
-          </Typography>
-          {hasRole(['admin', 'tecnico']) && (
+    <DashboardLayout>
+      <Container maxWidth="lg">
+        <PageHeader
+        title="Macchinari"
+        breadcrumbs={['Inventory', 'Macchinari']}
+        renderRight={
+          hasRole(['admin', 'tecnico']) ? (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => router.push('/machines/new')}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                px: 3,
-                py: 1.5,
-                background: theme =>
-                  `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                boxShadow: theme => `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
-                '&:hover': {
-                  boxShadow: theme => `0 6px 16px ${alpha(theme.palette.primary.main, 0.4)}`,
-                },
-              }}
+              sx={{ borderRadius: 1 }}
             >
               Nuova Macchina
             </Button>
-          )}
-        </Box>
-        <Typography variant="body1" color="text.secondary">
-          Gestisci il parco macchine e monitora lo stato di ogni macchinario
-        </Typography>
-      </Box>
+          ) : undefined
+        }
+      />
 
       {/* Filters Card */}
-      <Card
-        sx={{
-          mb: 3,
-          p: 3,
-          borderRadius: 3,
-          boxShadow: theme => `0 2px 8px ${alpha(theme.palette.primary.main, 0.08)}`,
-          border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-        }}
-      >
+      <Card elevation={2} sx={{ mb: 3, p: 3, borderRadius: 1 }}>
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
           <FilterListIcon sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" fontWeight={600}>
-            Filtri
-          </Typography>
         </Stack>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={3}>
@@ -326,7 +278,7 @@ export default function MachinesPage() {
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
+                  borderRadius: 1,
                 },
               }}
             />
@@ -343,7 +295,7 @@ export default function MachinesPage() {
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
+                  borderRadius: 1,
                 },
               }}
             >
@@ -365,7 +317,7 @@ export default function MachinesPage() {
               disabled={!selectedCategory}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
+                  borderRadius: 1,
                 },
               }}
             >
@@ -386,7 +338,7 @@ export default function MachinesPage() {
               onChange={e => setSelectedStatus(e.target.value)}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
+                  borderRadius: 1,
                 },
               }}
             >
@@ -399,15 +351,8 @@ export default function MachinesPage() {
         </Grid>
       </Card>
 
-      {/* DataGrid Card */}
-      <Card
-        sx={{
-          borderRadius: 3,
-          boxShadow: theme => `0 2px 8px ${alpha(theme.palette.primary.main, 0.08)}`,
-          border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-          overflow: 'hidden',
-        }}
-      >
+      {/* DataGrid */}
+      <Paper sx={{ borderRadius: 1, overflow: 'hidden' }}>
         <DataGrid
           rows={filteredMachines}
           columns={columns}
@@ -420,25 +365,10 @@ export default function MachinesPage() {
             },
           }}
           pageSizeOptions={[10, 25, 50]}
-          sx={{
-            border: 'none',
-            '& .MuiDataGrid-cell': {
-              borderColor: theme => alpha(theme.palette.divider, 0.5),
-            },
-            '& .MuiDataGrid-columnHeaders': {
-              bgcolor: theme => alpha(theme.palette.primary.main, 0.05),
-              borderBottom: theme => `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-              '& .MuiDataGrid-columnHeaderTitle': {
-                fontWeight: 700,
-                color: 'primary.main',
-              },
-            },
-            '& .MuiDataGrid-row:hover': {
-              bgcolor: theme => alpha(theme.palette.primary.main, 0.02),
-            },
-          }}
+          sx={{ border: 'none' }}
         />
-      </Card>
-    </Box>
+      </Paper>
+      </Container>
+    </DashboardLayout>
   );
 }

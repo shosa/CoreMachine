@@ -63,7 +63,7 @@ export default function StatsCard({
             sx={{
               width: 64,
               height: 64,
-              borderRadius: 3,
+              borderRadius: 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
