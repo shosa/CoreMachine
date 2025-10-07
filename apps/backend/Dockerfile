@@ -1,11 +1,14 @@
 FROM node:18-alpine AS base
 
-# Install dependencies only when needed
+# Install root dependencies
 FROM base AS deps
 WORKDIR /app
-COPY package*.json ./
-COPY apps/backend/package*.json ./apps/backend/
-RUN npm install --legacy-peer-deps
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+COPY apps/backend/package.json apps/backend/
+RUN \
+  if [ -f yarn.lock ]; then yarn install --frozen-lockfile; fi ;\
+  if [ -f package-lock.json ]; then npm install --frozen-lockfile; fi ;\
+  if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; fi
 
 # Build the application
 FROM base AS builder
@@ -13,7 +16,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 WORKDIR /app/apps/backend
-RUN npm install --legacy-peer-deps
 RUN npx prisma generate
 RUN npm run build
 

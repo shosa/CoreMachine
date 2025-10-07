@@ -5,9 +5,10 @@ import Image from 'next/image';
 
 interface LogoProps {
   collapsed?: boolean;
+  invert?: boolean;
 }
 
-export default function Logo({ collapsed = false }: LogoProps) {
+export default function Logo({ collapsed = false, invert = true }: LogoProps) {
   return (
     <Box
       sx={{
@@ -23,7 +24,7 @@ export default function Logo({ collapsed = false }: LogoProps) {
         alt="CoreMachine Logo"
         width={32}
         height={32}
-        style={{ filter: 'invert(1)' }}
+        style={{ filter: invert ? 'invert(1)' : 'none' }}
       />
       {!collapsed && (
         <Typography

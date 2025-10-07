@@ -86,18 +86,19 @@ model Type {
 }
 
 model Machine {
-  id               String    @id @default(uuid())
-  typeId           String    @map("type_id")
-  serialNumber     String    @unique @map("serial_number")
-  description      String    @db.Text
-  manufacturer     String
-  model            String
-  yearBuilt        Int?      @map("year_built")
-  purchaseDate     DateTime? @map("purchase_date")
-  dealer           String?
-  invoiceReference String?   @map("invoice_reference")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  id                 String    @id @default(uuid())
+  typeId             String    @map("type_id")
+  serialNumber       String    @unique @map("serial_number")
+  description        String    @db.Text
+  manufacturer       String
+  model              String
+  yearBuilt          Int?      @map("year_built")
+  purchaseDate       DateTime? @map("purchase_date")
+  dealer             String?
+  invoiceReference   String?   @map("invoice_reference")
+  documentLocation   String?   @map("document_location")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   // Relations
   type                  Type                   @relation(fields: [typeId], references: [id], onDelete: Restrict)

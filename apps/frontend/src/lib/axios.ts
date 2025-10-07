@@ -27,23 +27,20 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only logout on 401 specifically related to authentication
-    // Ignore 404s and other errors
-    if (error.response?.status === 401 && error.config?.url) {
-      // Only logout if it's an authentication endpoint or the token is actually invalid
-      // Don't logout for simple 404s or other HTTP errors
-      const isAuthEndpoint = error.config.url.includes('/auth/') || error.config.url.includes('/profile');
-      const hasAuthHeader = error.config.headers?.Authorization;
+    if (error.response?.status === 401) {
+      const errorMessage = error.response.data?.message?.toLowerCase();
+      const isInvalidToken = errorMessage?.includes('invalid token') || errorMessage?.includes('token expired');
 
-      // Only trigger logout if:
-      // 1. It's an auth-related endpoint, OR
-      // 2. We sent an auth token and it was rejected (invalid/expired token)
-      if (isAuthEndpoint || (hasAuthHeader && error.response?.data?.message?.includes('token'))) {
+      if (isInvalidToken) {
         // Check if we're already on the login page to avoid redirect loops
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
           console.log('🔒 Session expired or unauthorized - redirecting to login');
+          
+          // Clear auth data from storage
           localStorage.removeItem('auth-token');
           localStorage.removeItem('auth-user');
+
+          // Redirect to login
           window.location.href = '/login';
         }
       }

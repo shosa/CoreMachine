@@ -46,4 +46,8 @@ export class CreateMachineDto {
   @IsString()
   @IsOptional()
   invoiceReference?: string;
+
+  @IsString()
+  @IsOptional()
+  documentLocation?: string;
 }

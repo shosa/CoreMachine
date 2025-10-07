@@ -30,6 +30,7 @@ const schema = yup.object({
   purchaseDate: yup.string(),
   dealer: yup.string(),
   invoiceReference: yup.string(),
+  documentLocation: yup.string(),
 });
 
 export default function NewMachinePage() {
@@ -54,6 +55,7 @@ export default function NewMachinePage() {
       purchaseDate: '',
       dealer: '',
       invoiceReference: '',
+      documentLocation: '',
     },
   });
 
@@ -248,6 +250,21 @@ export default function NewMachinePage() {
                     label="Riferimento Fattura"
                     error={!!errors.invoiceReference}
                     helperText={errors.invoiceReference?.message}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="documentLocation"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="Locazione Documenti"
+                    error={!!errors.documentLocation}
+                    helperText={errors.documentLocation?.message}
                   />
                 )}
               />

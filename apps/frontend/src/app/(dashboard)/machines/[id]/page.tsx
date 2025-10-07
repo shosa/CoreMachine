@@ -567,6 +567,17 @@ export default function MachineDetailPage() {
                 </Stack>
               </Grid>
 
+              <Grid item xs={12} sm={6} md={4}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Locazione Documenti
+                  </Typography>
+                  <Typography variant="body1" fontWeight={600}>
+                    {machine.documentLocation || '-'}
+                  </Typography>
+                </Stack>
+              </Grid>
+
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom fontWeight={600} sx={{ mt: 2 }}>
                   Descrizione

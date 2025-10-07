@@ -258,6 +258,7 @@ export default function MachinesPage() {
       headerName: 'Anno',
       width: 100,
     },
+    
     {
       field: 'actions',
       headerName: 'Azioni',

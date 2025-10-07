@@ -46,6 +46,7 @@ export interface Machine {
   purchaseDate?: string;
   dealer?: string;
   invoiceReference?: string;
+  documentLocation?: string;
   type?: Type;
   documents?: Document[];
   maintenances?: Maintenance[];
@@ -172,6 +173,7 @@ export interface MachineFormData {
   purchaseDate?: string;
   dealer?: string;
   invoiceReference?: string;
+  documentLocation?: string;
 }
 
 export interface MaintenanceFormData {
@@ -204,7 +206,8 @@ export interface DocumentFormData {
 // Stats types
 export interface DashboardStats {
   totalMachines: number;
+  totalMaintenances: number;
   pendingMaintenances: number;
   totalDocuments: number;
-  activeUsers: number;
+  totalUsers: number;
 }

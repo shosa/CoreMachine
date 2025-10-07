@@ -12,7 +12,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { Build } from '@mui/icons-material';
+import Logo from '@/components/Logo';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -83,13 +83,13 @@ export default function LoginPage() {
               mb: 4,
             }}
           >
-            <Build sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+            <div style={{ transform: 'scale(1.5)', marginBottom: '1rem' }}>
+              <Logo invert={false} collapsed={true} />
+            </div>
             <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
               CoreMachine
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Gestione Macchinari e Manutenzioni
-            </Typography>
+           
           </Box>
 
           {error && (
