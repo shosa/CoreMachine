@@ -58,12 +58,12 @@ services:
     networks:
       - coremachine-network
 
-  # Backend API
+  # backend API
   backend:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-    container_name: coremachine-backend
+    container_name: backend
     restart: unless-stopped
     environment:
       DATABASE_URL: mysql://${MYSQL_USER:-coremachine}:${MYSQL_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-coremachine}
@@ -93,12 +93,12 @@ services:
       - coremachine-network
     command: sh -c "npx prisma migrate deploy && node dist/main"
 
-  # Frontend
+  # frontend
   frontend:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
-    container_name: coremachine-frontend
+    container_name: frontend
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}

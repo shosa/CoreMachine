@@ -106,12 +106,14 @@ export default function DocumentsPage() {
 
   const handleDownload = async (id: string) => {
     try {
-      const response = await axiosInstance.get(`/documents/${id}/download`, { responseType: 'blob' });
+      const response = await axiosInstance.get(`/documents/${id}/download`, {
+        responseType: 'blob',
+      });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      const document = documents.find((d) => d.id === id);
-      link.setAttribute('download', document?.fileName || 'download');
+      const doc = documents.find(d => String(d.id) === String(id));
+      link.setAttribute('download', doc?.fileName || 'download');
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -131,7 +133,7 @@ export default function DocumentsPage() {
 
   const handleExportCSV = () => {
     const headers = ['Nome File', 'Macchinario', 'Categoria', 'Dimensione', 'Data Caricamento'];
-    const rows = filteredAndSortedDocuments.map((d) => [
+    const rows = filteredAndSortedDocuments.map(d => [
       d.fileName,
       d.machine?.serialNumber || '',
       categoryLabels[d.documentCategory] || d.documentCategory,
@@ -139,7 +141,7 @@ export default function DocumentsPage() {
       format(new Date(d.uploadedAt || new Date()), 'dd/MM/yyyy'),
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -178,15 +180,17 @@ export default function DocumentsPage() {
   };
 
   // Filtraggio
-  let filteredDocuments = documents.filter((document) => {
+  let filteredDocuments = documents.filter(document => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch =
       !searchQuery ||
       document.fileName?.toLowerCase().includes(searchLower) ||
       document.machine?.serialNumber?.toLowerCase().includes(searchLower);
 
-    const matchesCategory = !filters.documentCategory || document.documentCategory === filters.documentCategory;
-    const matchesMachine = !filters.machine || document.machine?.id === filters.machine;
+    const matchesCategory =
+      !filters.documentCategory || document.documentCategory === filters.documentCategory;
+    const matchesMachine =
+      !filters.machine || String(document.machine?.id) === String(filters.machine);
 
     return matchesSearch && matchesCategory && matchesMachine;
   });
@@ -203,9 +207,9 @@ export default function DocumentsPage() {
       case 'category':
         return (a.documentCategory || '').localeCompare(b.documentCategory || '');
       case 'newest':
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        return new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
       case 'oldest':
-        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        return new Date(a.uploadedAt || 0).getTime() - new Date(b.uploadedAt || 0).getTime();
       default:
         return 0;
     }
@@ -232,26 +236,26 @@ export default function DocumentsPage() {
       field: 'documentCategory',
       headerName: 'Categoria',
       width: 180,
-      valueFormatter: (value) => categoryLabels[value] || value,
+      valueFormatter: value => categoryLabels[value] || value,
     },
     {
       field: 'fileSize',
       headerName: 'Dimensione',
       width: 120,
-      valueFormatter: (value) => formatFileSize(value),
+      valueFormatter: value => formatFileSize(value),
     },
     {
       field: 'uploadedAt',
       headerName: 'Caricato il',
       width: 150,
-      valueFormatter: (value) => format(new Date(value), 'dd/MM/yyyy', { locale: it }),
+      valueFormatter: value => format(new Date(value), 'dd/MM/yyyy', { locale: it }),
     },
     {
       field: 'actions',
       headerName: 'Azioni',
       width: 120,
       sortable: false,
-      renderCell: (params) => (
+      renderCell: params => (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', height: '100%' }}>
           <IconButton
             size="small"
@@ -291,17 +295,29 @@ export default function DocumentsPage() {
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Documenti' }]}
         renderRight={
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" startIcon={<FileDownload />} onClick={(e) => setExportMenuAnchor(e.currentTarget)}>
+            <Button
+              variant="outlined"
+              startIcon={<FileDownload />}
+              onClick={e => setExportMenuAnchor(e.currentTarget)}
+            >
               Esporta
             </Button>
-            <Button variant="contained" startIcon={<Add />} onClick={() => router.push('/documents/new')}>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => router.push('/documents/new')}
+            >
               Carica Documento
             </Button>
           </Stack>
         }
       />
 
-      <Menu anchorEl={exportMenuAnchor} open={Boolean(exportMenuAnchor)} onClose={() => setExportMenuAnchor(null)}>
+      <Menu
+        anchorEl={exportMenuAnchor}
+        open={Boolean(exportMenuAnchor)}
+        onClose={() => setExportMenuAnchor(null)}
+      >
         <MenuItem onClick={handleExportCSV}>
           <ListItemIcon>
             <GetApp fontSize="small" />
@@ -323,14 +339,19 @@ export default function DocumentsPage() {
             fullWidth
             placeholder="Cerca per nome file o macchinario..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             InputProps={{
               startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
             }}
             sx={{ flex: 1, minWidth: 250 }}
           />
 
-          <ToggleButtonGroup value={viewMode} exclusive onChange={(e, newMode) => newMode && setViewMode(newMode)} size="small">
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(e, newMode) => newMode && setViewMode(newMode)}
+            size="small"
+          >
             <ToggleButton value="table" aria-label="vista tabella">
               <ViewList />
             </ToggleButton>
@@ -341,7 +362,11 @@ export default function DocumentsPage() {
 
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <InputLabel>Ordina per</InputLabel>
-            <Select value={sortBy} label="Ordina per" onChange={(e) => setSortBy(e.target.value as SortOption)}>
+            <Select
+              value={sortBy}
+              label="Ordina per"
+              onChange={e => setSortBy(e.target.value as SortOption)}
+            >
               <MenuItem value="fileName">Nome File</MenuItem>
               <MenuItem value="date">Data Caricamento</MenuItem>
               <MenuItem value="size">Dimensione</MenuItem>
@@ -354,11 +379,15 @@ export default function DocumentsPage() {
 
         {/* Filtri */}
         <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}
+          >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <FilterList />
               <Box sx={{ fontWeight: 600 }}>Filtri</Box>
-              {activeFiltersCount > 0 && <Chip label={`${activeFiltersCount} attivi`} size="small" color="primary" />}
+              {activeFiltersCount > 0 && (
+                <Chip label={`${activeFiltersCount} attivi`} size="small" color="primary" />
+              )}
             </Box>
             {activeFiltersCount > 0 && (
               <Button size="small" onClick={handleClearFilters}>
@@ -374,7 +403,7 @@ export default function DocumentsPage() {
                 <Select
                   value={filters.documentCategory}
                   label="Categoria"
-                  onChange={(e) => setFilters({ ...filters, documentCategory: e.target.value })}
+                  onChange={e => setFilters({ ...filters, documentCategory: e.target.value })}
                 >
                   <MenuItem value="">Tutte</MenuItem>
                   <MenuItem value="manuale_uso">Manuale d'uso</MenuItem>
@@ -389,9 +418,13 @@ export default function DocumentsPage() {
             <Grid item xs={12} sm={6} md={4}>
               <FormControl fullWidth size="small">
                 <InputLabel>Macchinario</InputLabel>
-                <Select value={filters.machine} label="Macchinario" onChange={(e) => setFilters({ ...filters, machine: e.target.value })}>
+                <Select
+                  value={filters.machine}
+                  label="Macchinario"
+                  onChange={e => setFilters({ ...filters, machine: e.target.value })}
+                >
                   <MenuItem value="">Tutti</MenuItem>
-                  {machines.map((machine) => (
+                  {machines.map(machine => (
                     <MenuItem key={machine.id} value={machine.id}>
                       {machine.serialNumber}
                     </MenuItem>
@@ -427,9 +460,13 @@ export default function DocumentsPage() {
           />
         ) : (
           <Grid container spacing={3}>
-            {filteredAndSortedDocuments.map((document) => (
+            {filteredAndSortedDocuments.map(document => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={document.id}>
-                <DocumentCard document={document} onDownload={handleDownload} onDelete={handleDelete} />
+                <DocumentCard
+                  document={document}
+                  onDownload={handleDownload}
+                  onDelete={handleDelete}
+                />
               </Grid>
             ))}
           </Grid>

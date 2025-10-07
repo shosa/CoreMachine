@@ -29,8 +29,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nestjs
 
 COPY --from=builder /app/apps/backend/dist ./dist
-COPY --from=builder /app/apps/backend/node_modules ./node_modules
-COPY --from=builder /app/apps/backend/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+RUN chown -R nestjs:nodejs ./node_modules
+COPY --from=builder /app/apps/backend/package.json [package.json](http://_vscodecontentref_/1)
 COPY --from=builder /app/apps/backend/prisma ./prisma
 
 USER nestjs

@@ -2,7 +2,6 @@ FROM node:18-alpine AS deps
 WORKDIR /app
 
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
-
 COPY apps/frontend/package.json apps/frontend/
 COPY apps/frontend/next.config.mjs apps/frontend/
 COPY apps/frontend/tsconfig.json apps/frontend/
@@ -27,7 +26,11 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 COPY --from=builder /app/apps/frontend/public ./public
 COPY --from=builder /app/apps/frontend/.next ./.next
-COPY --from=builder /app/apps/frontend/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
 COPY apps/frontend/package.json ./package.json
+COPY apps/frontend/next.config.mjs ./next.config.mjs
+COPY apps/frontend/tsconfig.json ./tsconfig.json
+
+EXPOSE 3000
 
 CMD ["npm", "start"]

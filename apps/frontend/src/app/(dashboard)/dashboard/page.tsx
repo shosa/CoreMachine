@@ -94,21 +94,24 @@ export default function DashboardPage() {
         totalMaintenances: Array.isArray(maintenancesRes.data) ? maintenancesRes.data.length : 0,
         totalDocuments: Array.isArray(documentsRes.data) ? documentsRes.data.length : 0,
         totalUsers: Array.isArray(usersRes.data) ? usersRes.data.length : 0,
+        pendingMaintenances: Array.isArray(maintenancesRes.data)
+          ? maintenancesRes.data.filter((m: any) => m.status === 'pending').length
+          : 0,
       };
 
       setStats(calculatedStats);
 
       // Get recent maintenances (last 5)
       const allMaintenances = Array.isArray(maintenancesRes.data) ? maintenancesRes.data : [];
-      const sortedMaintenances = [...allMaintenances].sort((a, b) =>
-        new Date(b.date).getTime() - new Date(a.date).getTime()
+      const sortedMaintenances = [...allMaintenances].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
       setRecentMaintenances(sortedMaintenances.slice(0, 5));
 
       // Get recent machines (last 5)
       const allMachines = Array.isArray(machinesRes.data) ? machinesRes.data : [];
-      const sortedMachines = [...allMachines].sort((a, b) =>
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      const sortedMachines = [...allMachines].sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
       );
       setRecentMachines(sortedMachines.slice(0, 5));
     } catch (error: any) {
@@ -154,7 +157,7 @@ export default function DashboardPage() {
       field: 'date',
       headerName: 'Data',
       width: 120,
-      valueFormatter: (value) => {
+      valueFormatter: value => {
         return format(new Date(value), 'dd/MM/yyyy', { locale: it });
       },
     },
@@ -175,7 +178,7 @@ export default function DashboardPage() {
       field: 'type',
       headerName: 'Tipo',
       width: 150,
-      valueFormatter: (value) => {
+      valueFormatter: value => {
         const types: Record<string, string> = {
           ordinaria: 'Ordinaria',
           straordinaria: 'Straordinaria',
@@ -194,7 +197,7 @@ export default function DashboardPage() {
       field: 'cost',
       headerName: 'Costo',
       width: 120,
-      valueFormatter: (value) => {
+      valueFormatter: value => {
         return value ? `€${Number(value).toFixed(2)}` : '-';
       },
     },
@@ -215,24 +218,24 @@ export default function DashboardPage() {
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Totale Macchinari"
+            title="Macchinari Censiti"
             value={stats?.totalMachines || 0}
             icon={<PrecisionManufacturing sx={{ fontSize: 28 }} />}
             color="#1976d2"
-            trend={12}
+           
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Manutenzioni in Sospeso"
-            value={stats?.pendingMaintenances || 0}
+            title="Manutenzioni Registrate"
+            value={stats?.totalMaintenances || 0}
             icon={<Build sx={{ fontSize: 28 }} />}
             color="#ed6c02"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Documenti"
+            title="Documenti Disponibili"
             value={stats?.totalDocuments || 0}
             icon={<Description sx={{ fontSize: 28 }} />}
             color="#2e7d32"
@@ -240,8 +243,8 @@ export default function DashboardPage() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Utenti Attivi"
-            value={stats?.activeUsers || 0}
+            title="Utenti"
+            value={stats?.totalUsers || 0}
             icon={<People sx={{ fontSize: 28 }} />}
             color="#9c27b0"
           />
