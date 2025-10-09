@@ -1,0 +1,48 @@
+# Dockerfile ottimizzato per build con node_modules locali
+FROM node:18-alpine AS base
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copia node_modules GIÀ installati dalla tua macchina
+COPY node_modules ./node_modules
+COPY apps/frontend/node_modules ./apps/frontend/node_modules
+
+# Copia workspace config
+COPY package.json package-lock.json* ./
+
+# Copia frontend source
+COPY apps/frontend ./apps/frontend
+
+WORKDIR /app/apps/frontend
+
+# Build Next.js
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# Stage runner
+FROM node:18-alpine AS runner
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Create user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy build artifacts
+COPY --from=base --chown=nextjs:nodejs /app/apps/frontend/.next/standalone ./
+COPY --from=base --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
+COPY --from=base --chown=nextjs:nodejs /app/apps/frontend/public ./apps/frontend/public
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "apps/frontend/server.js"]

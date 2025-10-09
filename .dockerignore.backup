@@ -1,11 +1,14 @@
-# Dockerignore per build con node_modules locali
-# NON ignora node_modules perché li copiamo
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
 
-# Build outputs (li ricreiamo comunque)
+# Build outputs
 dist
-.next/cache
-.next/trace
+.next
 out
+build
 
 # Environment files
 .env
@@ -38,11 +41,8 @@ tests
 # Logs
 logs
 *.log
-npm-debug.log
-yarn-error.log
-pnpm-debug.log
 
-# Desktop app
+# Desktop app (not needed in Docker)
 apps/desktop
 
 # Documentation
@@ -51,7 +51,9 @@ CHANGELOG.md
 LICENSE.md
 
 # Docker files
+Dockerfile*
 docker-compose*.yml
+.dockerignore
 
 # Misc
 .editorconfig

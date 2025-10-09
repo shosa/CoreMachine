@@ -1,0 +1,54 @@
+# Dockerfile ottimizzato per build con node_modules locali
+FROM node:18-alpine AS base
+RUN apk add --no-cache libc6-compat openssl
+
+WORKDIR /app
+
+# Copia node_modules GIÀ installati dalla tua macchina
+COPY node_modules ./node_modules
+COPY apps/backend/node_modules ./apps/backend/node_modules
+
+# Copia workspace config
+COPY package.json package-lock.json* ./
+
+# Copia backend source
+COPY apps/backend ./apps/backend
+
+WORKDIR /app/apps/backend
+
+# IMPORTANTE: Rigenera Prisma Client per Alpine Linux
+# Rimuovi quello di Windows e rigenera
+RUN rm -rf node_modules/.prisma node_modules/@prisma/client
+RUN npm install @prisma/client@5.22.0 --no-save
+RUN npx prisma generate
+
+# Build NestJS
+RUN npm run build
+
+# Stage runner
+FROM node:18-alpine AS runner
+RUN apk add --no-cache openssl
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Create user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nestjs
+
+# Copy artifacts from builder
+COPY --from=base --chown=nestjs:nodejs /app/apps/backend/dist ./dist
+COPY --from=base --chown=nestjs:nodejs /app/apps/backend/prisma ./prisma
+COPY --from=base --chown=nestjs:nodejs /app/apps/backend/package.json ./package.json
+COPY --from=base --chown=nestjs:nodejs /app/node_modules ./node_modules
+
+# CRITICO: Copia Prisma Client generato per Alpine
+COPY --from=base --chown=nestjs:nodejs /app/apps/backend/node_modules/.prisma ./node_modules/.prisma
+COPY --from=base --chown=nestjs:nodejs /app/apps/backend/node_modules/@prisma ./node_modules/@prisma
+
+USER nestjs
+
+EXPOSE 3001
+
+CMD ["node", "dist/main"]
