@@ -1,0 +1,88 @@
+# CoreMachine - Applicazione (usa servizi da docker-compose.services.yml)
+#
+# IMPORTANTE: Prima di avviare questo stack, assicurati che i servizi condivisi siano attivi:
+#   docker-compose -f docker-compose.services.yml up -d
+#
+# Avvio:   docker-compose -f docker-compose.app.yml up -d
+# Stop:    docker-compose -f docker-compose.app.yml down
+# Logs:    docker-compose -f docker-compose.app.yml logs -f
+
+services:
+  # Backend API (NestJS)
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: coremachine-backend
+    restart: unless-stopped
+    environment:
+      # Database - usa il MySQL condiviso
+      DATABASE_URL: mysql://${MYSQL_USER:-coremachine}:${MYSQL_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-coremachine}
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+
+      # MinIO - usa il MinIO condiviso
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_BUCKET_NAME: coremachine-files
+
+      # Meilisearch - usa il Meilisearch condiviso
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_API_KEY: ${MEILI_MASTER_KEY:-masterKeyChangeThis}
+
+      # App
+      APP_PORT: 3001
+      APP_URL: ${APP_URL:-http://localhost}
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    networks:
+      - core-network  # Usa la network condivisa
+    command: sh -c "npx prisma migrate deploy || true && node dist/main"
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+    container_name: coremachine-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - core-network  # Usa la network condivisa
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: coremachine-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - core-network  # Usa la network condivisa
+
+# Usa la network esterna creata da docker-compose.services.yml
+networks:
+  core-network:
+    external: true
+    name: core-network

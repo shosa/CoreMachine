@@ -1,0 +1,36 @@
+{
+  "name": "coremachine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema di gestione centralizzata del parco macchine aziendale",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "apps/desktop"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=@coremachine/backend",
+    "dev:frontend": "npm run dev --workspace=@coremachine/frontend",
+    "dev:desktop": "npm run dev --workspace=@coremachine/desktop",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build:backend": "npm run build --workspace=@coremachine/backend",
+    "build:frontend": "npm run build --workspace=@coremachine/frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "prisma:generate": "npm run prisma:generate --workspace=@coremachine/backend",
+    "prisma:migrate": "npm run prisma:migrate --workspace=@coremachine/backend",
+    "prisma:studio": "npm run prisma:studio --workspace=@coremachine/backend"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "concurrently": "^8.2.2",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.2"
+  }
+}
