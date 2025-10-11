@@ -20,6 +20,9 @@ import {
   Menu,
   ListItemIcon,
   ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import {
   Add,
@@ -31,6 +34,8 @@ import {
   FilterList,
   FileDownload,
   GetApp,
+  Visibility,
+  Close,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import PageHeader from '@/components/PageHeader';
@@ -60,6 +65,9 @@ export default function DocumentsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
+  const [docPreviewOpen, setDocPreviewOpen] = useState(false);
+  const [docPreviewUrl, setDocPreviewUrl] = useState('');
+  const [docPreviewName, setDocPreviewName] = useState('');
 
   const [filters, setFilters] = useState<Filters>({
     documentCategory: '',

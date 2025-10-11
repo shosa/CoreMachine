@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Box,
   Container,
@@ -12,23 +12,28 @@ import {
   Button,
   CircularProgress,
   Grid,
+  Alert,
 } from '@mui/material';
-import { Build, Save } from '@mui/icons-material';
+import { Build, Save, CheckCircle } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import axiosInstance from '@/lib/axios';
 import { useSnackbar } from 'notistack';
+import { useAuthStore } from '@/store/authStore';
 import { Machine, MaintenanceFormData } from '@/types';
 
 export default function QuickMaintenancePage() {
   const params = useParams();
+  const router = useRouter();
+  const { user } = useAuthStore();
   const { enqueueSnackbar } = useSnackbar();
   const [machine, setMachine] = useState<Machine | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const { control, handleSubmit } = useForm<Partial<MaintenanceFormData>>({
     defaultValues: {
-      machineId: Number(params.id),
+      machineId: params.id as string,
       date: new Date().toISOString().split('T')[0],
       type: 'ordinaria',
       workPerformed: '',
@@ -53,17 +58,23 @@ export default function QuickMaintenancePage() {
   };
 
   const onSubmit = async (data: Partial<MaintenanceFormData>) => {
+    if (!user) {
+      enqueueSnackbar('Devi effettuare il login per registrare una manutenzione', { variant: 'warning' });
+      router.push(`/login?redirect=/m/${params.id}`);
+      return;
+    }
+
     try {
       setSubmitting(true);
-      // Assume operatorId from query or use a default public user
       const maintenanceData = {
         ...data,
-        operatorId: 1, // Default operator for quick maintenance
+        operatorId: user.id,
       };
       await axiosInstance.post('/maintenances', maintenanceData);
+      setSuccess(true);
       enqueueSnackbar('Manutenzione registrata con successo', { variant: 'success' });
     } catch (error: any) {
-      enqueueSnackbar('Errore durante la registrazione', { variant: 'error' });
+      enqueueSnackbar(error.response?.data?.message || 'Errore durante la registrazione', { variant: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -87,6 +98,31 @@ export default function QuickMaintenancePage() {
     );
   }
 
+  if (success) {
+    return (
+      <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 4, display: 'flex', alignItems: 'center' }}>
+        <Container maxWidth="sm">
+          <Card sx={{ p: 5, textAlign: 'center' }}>
+            <CheckCircle sx={{ fontSize: 80, color: 'success.main', mb: 3 }} />
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              Manutenzione Registrata!
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+              La manutenzione per il macchinario <strong>{machine?.serialNumber}</strong> è stata registrata con successo.
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => router.push(`/machines/${params.id}`)}
+            >
+              Visualizza Scheda Macchinario
+            </Button>
+          </Card>
+        </Container>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: 4 }}>
       <Container maxWidth="md">
@@ -104,9 +140,14 @@ export default function QuickMaintenancePage() {
           <Typography variant="body2" color="text.secondary" gutterBottom>
             Macchinario: {machine.serialNumber}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Tipo: {machine.type?.name}
           </Typography>
+          {!user && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Devi essere loggato per registrare una manutenzione
+            </Alert>
+          )}
         </Card>
 
         <Card sx={{ p: 4 }}>

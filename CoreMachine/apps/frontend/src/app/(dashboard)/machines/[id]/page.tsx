@@ -38,6 +38,7 @@ import {
   Download,
   Delete,
   Visibility,
+  Print,
 } from '@mui/icons-material';
 import PageHeader from '@/components/PageHeader';
 import Widget from '@/components/Widget';
@@ -49,6 +50,7 @@ import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import QRCode from 'qrcode';
+import jsPDF from 'jspdf';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -78,6 +80,11 @@ export default function MachineDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentCategory, setDocumentCategory] = useState('');
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
+  const [docPreviewOpen, setDocPreviewOpen] = useState(false);
+  const [docPreviewUrl, setDocPreviewUrl] = useState('');
+  const [docPreviewName, setDocPreviewName] = useState('');
 
   useEffect(() => {
     fetchMachine();
@@ -137,6 +144,23 @@ export default function MachineDetailPage() {
     }
   };
 
+  const handlePreviewDocument = async (doc: Document) => {
+    try {
+      const response = await axiosInstance.get(`/documents/${doc.id}/download`, {
+        responseType: 'blob',
+      });
+      // Get content type from response headers or default to application/pdf
+      const contentType = response.headers['content-type'] || 'application/pdf';
+      const blob = new Blob([response.data], { type: contentType });
+      const blobUrl = URL.createObjectURL(blob);
+      setDocPreviewUrl(blobUrl);
+      setDocPreviewName(doc.fileName);
+      setDocPreviewOpen(true);
+    } catch (error) {
+      enqueueSnackbar('Errore durante la visualizzazione', { variant: 'error' });
+    }
+  };
+
   const handleDownloadDocument = async (doc: Document) => {
     try {
       const response = await axiosInstance.get(`/documents/${doc.id}/download`, {
@@ -162,7 +186,274 @@ export default function MachineDetailPage() {
       enqueueSnackbar('Documento eliminato', { variant: 'success' });
       fetchMachine();
     } catch (error) {
-      enqueueSnackbar('Errore durante l\'eliminazione', { variant: 'error' });
+      enqueueSnackbar("Errore durante l'eliminazione", { variant: 'error' });
+    }
+  };
+
+  const handlePrintMachineSheet = async () => {
+    if (!machine) return;
+
+    try {
+      // Generate QR Code
+      const qrUrl = `${window.location.origin}/m/${params.id}`;
+      const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      });
+
+      // Create PDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      let yPos = margin;
+
+      // Helper function to add text
+      const addText = (
+        text: string,
+        fontSize: number,
+        isBold: boolean = false,
+        color: number[] = [0, 0, 0],
+      ) => {
+        pdf.setFontSize(fontSize);
+        pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
+        pdf.setTextColor(color[0], color[1], color[2]);
+        pdf.text(text, margin, yPos);
+        yPos += fontSize * 0.5;
+      };
+
+      // Header - Title and Logo Area
+      pdf.setFillColor(0, 0, 0); // Black header
+      pdf.rect(0, 0, pageWidth, 40, 'F');
+
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SCHEDA MACCHINARIO', pageWidth / 2, 15, { align: 'center' });
+
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('CoreMachine', pageWidth / 2, 25, { align: 'center' });
+
+      pdf.setFontSize(10);
+      pdf.text(format(new Date(), 'dd/MM/yyyy HH:mm', { locale: it }), pageWidth / 2, 33, {
+        align: 'center',
+      });
+
+      yPos = 50;
+
+      // Machine Description - Big Title
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.description || 'Macchinario senza descrizione', margin, yPos);
+      yPos += 10;
+
+      // Divider line
+      pdf.setDrawColor(200, 200, 200);
+      pdf.setLineWidth(0.5);
+      pdf.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 8;
+
+      // Section 1: Identificazione
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(margin, yPos - 5, pageWidth - 2 * margin, 8, 'F');
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('IDENTIFICAZIONE', margin + 2, yPos);
+      yPos += 10;
+
+      const col1X = margin + 5;
+      const col2X = pageWidth / 2 + 5;
+      const lineHeight = 7;
+
+      // Row 1
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('MATRICOLA:', col1X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.serialNumber, col1X + 25, yPos);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('CATEGORIA:', col2X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.type?.category?.name || '-', col2X + 25, yPos);
+      yPos += lineHeight;
+
+      // Row 2
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('PRODUTTORE:', col1X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.manufacturer || '-', col1X + 25, yPos);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('TIPO:', col2X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.type?.name || '-', col2X + 25, yPos);
+      yPos += lineHeight;
+
+      // Row 3
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('MODELLO:', col1X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.model || '-', col1X + 25, yPos);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('ANNO:', col2X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.yearBuilt?.toString() || '-', col2X + 25, yPos);
+      yPos += lineHeight + 5;
+
+      // Section 2: Informazioni Acquisto
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(margin, yPos - 5, pageWidth - 2 * margin, 8, 'F');
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('INFORMAZIONI ACQUISTO', margin + 2, yPos);
+      yPos += 10;
+
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('DATA ACQUISTO:', col1X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(
+        machine.purchaseDate
+          ? format(new Date(machine.purchaseDate), 'dd/MM/yyyy', { locale: it })
+          : '-',
+        col1X + 30,
+        yPos,
+      );
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('RIVENDITORE:', col2X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.dealer || '-', col2X + 30, yPos);
+      yPos += lineHeight;
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('RIF. FATTURA:', col1X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.invoiceReference || '-', col1X + 30, yPos);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('POSIZIONE DOC.:', col2X, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(machine.documentLocation || '-', col2X + 30, yPos);
+      yPos += lineHeight + 5;
+
+      // Section 3: QR Code per Manutenzione
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(margin, yPos - 5, pageWidth - 2 * margin, 8, 'F');
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('ACCESSO RAPIDO MANUTENZIONE', margin + 2, yPos);
+      yPos += 10;
+
+      // QR Code centered
+      const qrSize = 60;
+      const qrX = (pageWidth - qrSize) / 2;
+      pdf.addImage(qrCodeDataUrl, 'PNG', qrX, yPos, qrSize, qrSize);
+      yPos += qrSize + 5;
+
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Scansiona per registrare manutenzione', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 10;
+
+      // Section 4: Statistiche Manutenzione
+      if (machine.maintenances && machine.maintenances.length > 0) {
+        pdf.setFillColor(240, 240, 240);
+        pdf.rect(margin, yPos - 5, pageWidth - 2 * margin, 8, 'F');
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(26, 115, 232);
+        pdf.text('STATISTICHE MANUTENZIONE', margin + 2, yPos);
+        yPos += 10;
+
+        const totalMaintenances = machine.maintenances.length;
+        const lastMaintenance = machine.maintenances[0];
+
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(100, 100, 100);
+        pdf.text('TOT. MANUTENZIONI:', col1X, yPos);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(totalMaintenances.toString(), col1X + 40, yPos);
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(100, 100, 100);
+        pdf.text('ULTIMA MANUTENZIONE:', col2X, yPos);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(
+          lastMaintenance
+            ? format(new Date(lastMaintenance.date), 'dd/MM/yyyy', { locale: it })
+            : '-',
+          col2X + 45,
+          yPos,
+        );
+        yPos += lineHeight + 5;
+      }
+
+      // Footer
+      const footerY = pageHeight - 15;
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.5);
+      pdf.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
+
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('CoreMachine', margin, footerY);
+      pdf.text(
+        `Stampato il ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: it })}`,
+        pageWidth - margin,
+        footerY,
+        { align: 'right' },
+      );
+
+      // Create Blob URL for preview
+      const pdfBlob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      setPdfPreviewUrl(blobUrl);
+      setPdfPreviewOpen(true);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      enqueueSnackbar('Errore durante la generazione del PDF', { variant: 'error' });
     }
   };
 
@@ -171,13 +462,13 @@ export default function MachineDetailPage() {
       field: 'date',
       headerName: 'Data',
       width: 120,
-      valueFormatter: (value) => format(new Date(value), 'dd/MM/yyyy', { locale: it }),
+      valueFormatter: value => format(new Date(value), 'dd/MM/yyyy', { locale: it }),
     },
     {
       field: 'type',
       headerName: 'Tipo',
       width: 150,
-      renderCell: (params) => {
+      renderCell: params => {
         const colors: Record<string, any> = {
           ordinaria: 'success',
           straordinaria: 'info',
@@ -208,14 +499,14 @@ export default function MachineDetailPage() {
       field: 'cost',
       headerName: 'Costo',
       width: 120,
-      valueFormatter: (value) => (value ? `€${Number(value).toFixed(2)}` : '-'),
+      valueFormatter: value => (value ? `€${Number(value).toFixed(2)}` : '-'),
     },
     {
       field: 'actions',
       headerName: 'Azioni',
       width: 80,
       sortable: false,
-      renderCell: (params) => (
+      renderCell: params => (
         <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
           <IconButton
             size="small"
@@ -245,7 +536,7 @@ export default function MachineDetailPage() {
       field: 'documentCategory',
       headerName: 'Categoria',
       width: 180,
-      renderCell: (params) => {
+      renderCell: params => {
         const categories: Record<string, string> = {
           manuale_uso: "Manuale d'uso",
           certificazione_ce: 'Certificazione CE',
@@ -260,7 +551,7 @@ export default function MachineDetailPage() {
       field: 'fileSize',
       headerName: 'Dimensione',
       width: 120,
-      valueFormatter: (value) => {
+      valueFormatter: value => {
         const kb = value / 1024;
         return kb > 1024 ? `${(kb / 1024).toFixed(2)} MB` : `${kb.toFixed(2)} KB`;
       },
@@ -269,15 +560,28 @@ export default function MachineDetailPage() {
       field: 'uploadedAt',
       headerName: 'Caricato il',
       width: 150,
-      valueFormatter: (value) => format(new Date(value), 'dd/MM/yyyy HH:mm', { locale: it }),
+      valueFormatter: value => format(new Date(value), 'dd/MM/yyyy HH:mm', { locale: it }),
     },
     {
       field: 'actions',
       headerName: 'Azioni',
-      width: 120,
+      width: 160,
       sortable: false,
-      renderCell: (params) => (
+      renderCell: params => (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', height: '100%' }}>
+          <IconButton
+            size="small"
+            onClick={() => handlePreviewDocument(params.row)}
+            title="Anteprima"
+            sx={{
+              bgcolor: 'black',
+              color: 'white',
+              borderRadius: '6px',
+              '&:hover': { bgcolor: 'grey.800' },
+            }}
+          >
+            <Visibility fontSize="small" />
+          </IconButton>
           <IconButton
             size="small"
             onClick={() => handleDownloadDocument(params.row)}
@@ -347,13 +651,8 @@ export default function MachineDetailPage() {
                     {machine.description}
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
+                    <Chip label={`${machine.manufacturer} ${machine.model}`} variant="outlined" />
                     <Chip
-                     
-                      label={`${machine.manufacturer} ${machine.model}`}
-                      variant="outlined"
-                    />
-                    <Chip
-                    
                       label={machine.type?.category?.name || 'N/A'}
                       color="primary"
                       variant="outlined"
@@ -411,6 +710,18 @@ export default function MachineDetailPage() {
                   size="large"
                 >
                   Nuova Manutenzione
+                </Button>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<Print />}
+                  onClick={handlePrintMachineSheet}
+                  sx={{
+                    bgcolor: 'success.main',
+                    '&:hover': { bgcolor: 'success.dark' },
+                  }}
+                >
+                  Stampa Scheda
                 </Button>
                 <Button
                   variant="outlined"
@@ -584,7 +895,9 @@ export default function MachineDetailPage() {
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
                 <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
-                  <Typography variant="body1">{machine.description || 'Nessuna descrizione'}</Typography>
+                  <Typography variant="body1">
+                    {machine.description || 'Nessuna descrizione'}
+                  </Typography>
                 </Paper>
               </Grid>
             </Grid>
@@ -733,7 +1046,7 @@ export default function MachineDetailPage() {
               select
               label="Categoria Documento"
               value={documentCategory}
-              onChange={(e) => setDocumentCategory(e.target.value)}
+              onChange={e => setDocumentCategory(e.target.value)}
               fullWidth
               required
             >
@@ -750,7 +1063,7 @@ export default function MachineDetailPage() {
                 style={{ display: 'none' }}
                 id="file-upload"
                 type="file"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
               />
               <label htmlFor="file-upload">
                 <Button
@@ -780,6 +1093,94 @@ export default function MachineDetailPage() {
               {uploading ? 'Caricamento...' : 'Carica Documento'}
             </Button>
           </Stack>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Preview Dialog */}
+      <Dialog
+        open={pdfPreviewOpen}
+        onClose={() => {
+          setPdfPreviewOpen(false);
+          URL.revokeObjectURL(pdfPreviewUrl);
+        }}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh',
+          },
+        }}
+      >
+        <DialogTitle>
+          Anteprima Scheda Macchinario
+          <IconButton
+            onClick={() => {
+              setPdfPreviewOpen(false);
+              URL.revokeObjectURL(pdfPreviewUrl);
+            }}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
+          {pdfPreviewUrl && (
+            <iframe
+              src={pdfPreviewUrl}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                flexGrow: 1,
+              }}
+              title="Anteprima PDF"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Dialog */}
+      <Dialog
+        open={docPreviewOpen}
+        onClose={() => {
+          setDocPreviewOpen(false);
+          URL.revokeObjectURL(docPreviewUrl);
+        }}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh',
+          },
+        }}
+      >
+        <DialogTitle>
+          Anteprima Documento: {docPreviewName}
+          <IconButton
+            onClick={() => {
+              setDocPreviewOpen(false);
+              URL.revokeObjectURL(docPreviewUrl);
+            }}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
+          {docPreviewUrl && (
+            <iframe
+              src={docPreviewUrl}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                flexGrow: 1,
+              }}
+              title="Anteprima Documento"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </Box>
