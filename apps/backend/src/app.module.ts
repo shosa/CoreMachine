@@ -11,6 +11,7 @@ import { ScheduledMaintenancesModule } from './scheduled-maintenances/scheduled-
 import { DocumentsModule } from './documents/documents.module';
 import { MinioModule } from './minio/minio.module';
 import { MeilisearchModule } from './meilisearch/meilisearch.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { MeilisearchModule } from './meilisearch/meilisearch.module';
     DocumentsModule,
     MinioModule,
     MeilisearchModule,
+    StatsModule,
   ],
 })
 export class AppModule {}

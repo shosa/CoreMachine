@@ -13,6 +13,9 @@ export class CreateMaintenanceDto {
   @IsUUID()
   machineId: string;
 
+  @IsUUID()
+  operatorId: string;
+
   @IsDateString()
   date: string;
 

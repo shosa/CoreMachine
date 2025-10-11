@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 export const axiosInstance = axios.create({
   baseURL: API_URL,
@@ -28,20 +28,33 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      const errorMessage = error.response.data?.message?.toLowerCase();
-      const isInvalidToken = errorMessage?.includes('invalid token') || errorMessage?.includes('token expired');
+      // Don't redirect on login endpoint
+      const isLoginEndpoint = error.config?.url?.includes('/auth/login');
 
-      if (isInvalidToken) {
-        // Check if we're already on the login page to avoid redirect loops
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          console.log('🔒 Session expired or unauthorized - redirecting to login');
-          
-          // Clear auth data from storage
-          localStorage.removeItem('auth-token');
-          localStorage.removeItem('auth-user');
+      if (!isLoginEndpoint) {
+        const errorMessage = error.response.data?.message?.toLowerCase() || '';
+        const isTokenError =
+          errorMessage.includes('unauthorized') ||
+          errorMessage.includes('invalid token') ||
+          errorMessage.includes('token expired') ||
+          errorMessage.includes('jwt');
 
-          // Redirect to login
-          window.location.href = '/login';
+        // Only redirect if it's a token-related error and we have a token stored
+        const hasToken = localStorage.getItem('auth-token');
+
+        if (isTokenError && hasToken) {
+          // Check if we're already on the login page to avoid redirect loops
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+            console.log('🔒 Session expired - redirecting to login');
+
+            // Clear auth data from storage
+            localStorage.removeItem('auth-token');
+            localStorage.removeItem('auth-user');
+            localStorage.removeItem('auth-storage');
+
+            // Redirect to login
+            window.location.href = '/login';
+          }
         }
       }
     }

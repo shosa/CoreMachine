@@ -25,8 +25,8 @@ export class MaintenancesController {
 
   @Post()
   @Roles(UserRole.admin, UserRole.tecnico)
-  create(@Body() createMaintenanceDto: CreateMaintenanceDto, @Request() req) {
-    return this.maintenancesService.create(createMaintenanceDto, req.user.id);
+  create(@Body() createMaintenanceDto: CreateMaintenanceDto) {
+    return this.maintenancesService.create(createMaintenanceDto);
   }
 
   @Get()

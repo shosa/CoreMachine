@@ -1,18 +1,19 @@
 'use client';
 
 import { Card, CardContent, CardActions, Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
-import { Delete, Download, Description, PictureAsPdf, Image, InsertDriveFile } from '@mui/icons-material';
+import { Delete, Download, Description, PictureAsPdf, Image, InsertDriveFile, Visibility } from '@mui/icons-material';
 import { Document } from '@/types';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 interface DocumentCardProps {
   document: Document;
+  onPreview?: (id: string) => void;
   onDownload?: (id: string) => void;
   onDelete?: (id: string) => void;
 }
 
-export default function DocumentCard({ document, onDownload, onDelete }: DocumentCardProps) {
+export default function DocumentCard({ document, onPreview, onDownload, onDelete }: DocumentCardProps) {
   const categoryLabels: Record<string, string> = {
     manuale_uso: "Manuale d'uso",
     certificazione_ce: 'Certificazione CE',
@@ -112,6 +113,23 @@ export default function DocumentCard({ document, onDownload, onDelete }: Documen
       </CardContent>
 
       <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
+        {onPreview && (
+          <Tooltip title="Anteprima">
+            <IconButton
+              size="small"
+              onClick={() => onPreview(document.id)}
+              sx={{
+                bgcolor: 'black',
+                color: 'white',
+                borderRadius: '6px',
+                '&:hover': { bgcolor: 'grey.800' },
+              }}
+            >
+              <Visibility fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+
         {onDownload && (
           <Tooltip title="Scarica">
             <IconButton

@@ -1,48 +1,82 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Grid, Box, Typography, CircularProgress } from '@mui/material';
+import {
+  Grid,
+  Box,
+  Typography,
+  CircularProgress,
+  Card,
+  CardContent,
+  Chip,
+} from '@mui/material';
 import {
   PrecisionManufacturing,
   Build,
-  Description,
-  People,
   TrendingUp,
+  TrendingDown,
+  Schedule,
 } from '@mui/icons-material';
 import PageHeader from '@/components/PageHeader';
 import Widget from '@/components/Widget';
 import axiosInstance from '@/lib/axios';
 import { useSnackbar } from 'notistack';
-import { DashboardStats, Maintenance, Machine } from '@/types';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import MainFooterLogo from '@/components/MainFooterLogo';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface StatCardProps {
   title: string;
-  value: number;
+  value: number | string;
   icon: React.ReactNode;
   color: string;
   trend?: number;
+  subtitle?: string;
 }
 
-function StatCard({ title, value, icon, color, trend }: StatCardProps) {
+function StatCard({ title, value, icon, color, trend, subtitle }: StatCardProps) {
   return (
     <Widget>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography variant="body2" color="text.secondary" gutterBottom>
             {title}
           </Typography>
-          <Typography variant="h3" fontWeight={700}>
+          <Typography variant="h3" fontWeight={700} sx={{ mb: 0.5 }}>
             {value}
           </Typography>
-          {trend !== undefined && (
+          {subtitle && (
+            <Typography variant="caption" color="text.secondary">
+              {subtitle}
+            </Typography>
+          )}
+          {trend !== undefined && trend !== 0 && (
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-              <TrendingUp sx={{ fontSize: 16, color: 'success.main', mr: 0.5 }} />
-              <Typography variant="caption" color="success.main">
-                +{trend}% vs mese scorso
+              {trend > 0 ? (
+                <TrendingUp sx={{ fontSize: 16, color: 'success.main', mr: 0.5 }} />
+              ) : (
+                <TrendingDown sx={{ fontSize: 16, color: 'error.main', mr: 0.5 }} />
+              )}
+              <Typography
+                variant="caption"
+                color={trend > 0 ? 'success.main' : 'error.main'}
+                fontWeight={600}
+              >
+                {Math.abs(trend)}% vs mese scorso
               </Typography>
             </Box>
           )}
@@ -67,9 +101,10 @@ function StatCard({ title, value, icon, color, trend }: StatCardProps) {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentMaintenances, setRecentMaintenances] = useState<Maintenance[]>([]);
-  const [recentMachines, setRecentMachines] = useState<Machine[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [trends, setTrends] = useState<any[]>([]);
+  const [typeAnalysis, setTypeAnalysis] = useState<any>(null);
+  const [machineHealth, setMachineHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { enqueueSnackbar } = useSnackbar();
 
@@ -80,40 +115,17 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // Fetch data from different endpoints
-      const [machinesRes, maintenancesRes, documentsRes, usersRes] = await Promise.all([
-        axiosInstance.get('/machines'),
-        axiosInstance.get('/maintenances'),
-        axiosInstance.get('/documents'),
-        axiosInstance.get('/users'),
+      const [statsRes, trendsRes, typesRes, healthRes] = await Promise.all([
+        axiosInstance.get('/stats/dashboard'),
+        axiosInstance.get('/stats/maintenance-trends'),
+        axiosInstance.get('/stats/type-analysis'),
+        axiosInstance.get('/stats/machine-health'),
       ]);
 
-      // Calculate stats
-      const calculatedStats: DashboardStats = {
-        totalMachines: Array.isArray(machinesRes.data) ? machinesRes.data.length : 0,
-        totalMaintenances: Array.isArray(maintenancesRes.data) ? maintenancesRes.data.length : 0,
-        totalDocuments: Array.isArray(documentsRes.data) ? documentsRes.data.length : 0,
-        totalUsers: Array.isArray(usersRes.data) ? usersRes.data.length : 0,
-        pendingMaintenances: Array.isArray(maintenancesRes.data)
-          ? maintenancesRes.data.filter((m: any) => m.status === 'pending').length
-          : 0,
-      };
-
-      setStats(calculatedStats);
-
-      // Get recent maintenances (last 5)
-      const allMaintenances = Array.isArray(maintenancesRes.data) ? maintenancesRes.data : [];
-      const sortedMaintenances = [...allMaintenances].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      );
-      setRecentMaintenances(sortedMaintenances.slice(0, 5));
-
-      // Get recent machines (last 5)
-      const allMachines = Array.isArray(machinesRes.data) ? machinesRes.data : [];
-      const sortedMachines = [...allMachines].sort(
-        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
-      );
-      setRecentMachines(sortedMachines.slice(0, 5));
+      setStats(statsRes.data);
+      setTrends(trendsRes.data);
+      setTypeAnalysis(typesRes.data);
+      setMachineHealth(healthRes.data);
     } catch (error: any) {
       enqueueSnackbar('Errore nel caricamento dei dati', { variant: 'error' });
       console.error('Dashboard error:', error);
@@ -122,86 +134,8 @@ export default function DashboardPage() {
     }
   };
 
-  const machineColumns: GridColDef[] = [
-    {
-      field: 'serialNumber',
-      headerName: 'Matricola',
-      width: 150,
-    },
-    {
-      field: 'description',
-      headerName: 'Descrizione',
-      flex: 1,
-      minWidth: 200,
-    },
-    {
-      field: 'manufacturer',
-      headerName: 'Produttore',
-      width: 150,
-    },
-    {
-      field: 'model',
-      headerName: 'Modello',
-      width: 150,
-    },
-    {
-      field: 'type',
-      headerName: 'Tipo',
-      width: 150,
-      valueGetter: (value, row) => row.type?.name || '-',
-    },
-  ];
-
-  const maintenanceColumns: GridColDef[] = [
-    {
-      field: 'date',
-      headerName: 'Data',
-      width: 120,
-      valueFormatter: value => {
-        return format(new Date(value), 'dd/MM/yyyy', { locale: it });
-      },
-    },
-    {
-      field: 'machine',
-      headerName: 'Macchinario',
-      flex: 1,
-      minWidth: 200,
-      valueGetter: (value, row) => {
-        const machine = row.machine;
-        if (!machine) return '-';
-        const model = machine.model || machine.manufacturer || '';
-        const serial = machine.serialNumber || '';
-        return model ? `${model} (${serial})` : serial;
-      },
-    },
-    {
-      field: 'type',
-      headerName: 'Tipo',
-      width: 150,
-      valueFormatter: value => {
-        const types: Record<string, string> = {
-          ordinaria: 'Ordinaria',
-          straordinaria: 'Straordinaria',
-          guasto: 'Guasto',
-          riparazione: 'Riparazione',
-        };
-        return types[value] || value;
-      },
-    },
-    {
-      field: 'workPerformed',
-      headerName: 'Lavoro Eseguito',
-      flex: 1,
-    },
-    {
-      field: 'cost',
-      headerName: 'Costo',
-      width: 120,
-      valueFormatter: value => {
-        return value ? `€${Number(value).toFixed(2)}` : '-';
-      },
-    },
-  ];
+  // Category colors
+  const CATEGORY_COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
 
   if (loading) {
     return (
@@ -211,92 +145,185 @@ export default function DashboardPage() {
     );
   }
 
+  // Prepare data for charts
+  const machinesByCategoryData = stats?.machinesByCategory
+    ? Object.entries(stats.machinesByCategory).map(([category, count], index) => ({
+        name: category,
+        value: count,
+        color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+      }))
+    : [];
+
+  const trendsChartData = trends.map((t) => ({
+    month: format(new Date(t.month + '-01'), 'MMM yyyy', { locale: it }),
+    manutenzioni: t.count,
+  }));
+
   return (
     <Box>
       <PageHeader title="Dashboard" />
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} sm={6} md={3}>
+      {/* KPI Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
             title="Macchinari Censiti"
-            value={stats?.totalMachines || 0}
+            value={stats?.overview?.totalMachines || 0}
             icon={<PrecisionManufacturing sx={{ fontSize: 28 }} />}
             color="#1976d2"
-           
+            trend={stats?.thisMonth?.machinesTrend}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            title="Manutenzioni Registrate"
-            value={stats?.totalMaintenances || 0}
+            title="Manutenzioni (Mese)"
+            value={stats?.thisMonth?.maintenances || 0}
             icon={<Build sx={{ fontSize: 28 }} />}
             color="#ed6c02"
+            trend={stats?.thisMonth?.maintenanceTrend}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
-            title="Documenti Disponibili"
-            value={stats?.totalDocuments || 0}
-            icon={<Description sx={{ fontSize: 28 }} />}
-            color="#2e7d32"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Utenti"
-            value={stats?.totalUsers || 0}
-            icon={<People sx={{ fontSize: 28 }} />}
+            title="Manutenzioni in Scadenza"
+            value={stats?.overview?.upcomingScheduled || 0}
+            icon={<Schedule sx={{ fontSize: 28 }} />}
             color="#9c27b0"
+            subtitle="Prossimi 30 giorni"
           />
         </Grid>
+      </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Widget title="Ultimi Macchinari Aggiunti">
-            <DataGrid
-              rows={recentMachines}
-              columns={machineColumns}
-              autoHeight
-              pageSizeOptions={[5]}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 5 } },
-              }}
-              disableRowSelectionOnClick
-              sx={{
-                border: 0,
-                '& .MuiDataGrid-cell': {
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                },
-              }}
-            />
+      {/* Charts Row 1 */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} lg={8}>
+          <Widget title="Trend Manutenzioni (Ultimi 6 Mesi)">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={trendsChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" style={{ fontSize: 12 }} />
+                <YAxis style={{ fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #ccc',
+                    borderRadius: 8,
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="manutenzioni"
+                  stroke="#1976d2"
+                  strokeWidth={2}
+                  name="N° Manutenzioni"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </Widget>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Widget title="Manutenzioni Recenti">
-            <DataGrid
-              rows={recentMaintenances}
-              columns={maintenanceColumns}
-              autoHeight
-              pageSizeOptions={[5]}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 5 } },
-              }}
-              disableRowSelectionOnClick
-              sx={{
-                border: 0,
-                '& .MuiDataGrid-cell': {
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                },
-              }}
-            />
+        <Grid item xs={12} lg={4}>
+          <Widget title="Distribuzione Macchinari per Categoria">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={machinesByCategoryData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={(entry) => `${entry.name}: ${entry.value}`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {machinesByCategoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </Widget>
         </Grid>
       </Grid>
-      <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-        <MainFooterLogo opacity={0.8} />
-      </Box>
+
+      {/* Type Analysis */}
+      {typeAnalysis?.byType && typeAnalysis.byType.length > 0 && (
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12}>
+            <Widget title="Analisi per Tipologia Macchinario">
+              <Grid container spacing={2}>
+                {typeAnalysis.byType.slice(0, 6).map((type: any, index: number) => (
+                  <Grid item xs={12} sm={6} md={4} key={type.type}>
+                    <Card
+                      sx={{
+                        bgcolor: 'background.default',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <CardContent>
+                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                          {type.type}
+                        </Typography>
+                        <Chip
+                          label={type.category}
+                          size="small"
+                          sx={{ mb: 2 }}
+                          color="primary"
+                          variant="outlined"
+                        />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Macchinari
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            {type.machineCount}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Tot. Manutenzioni
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            {type.totalMaintenances}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Tot. Documenti
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            {type.totalDocuments}
+                          </Typography>
+                        </Box>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            pt: 1,
+                            borderTop: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary">
+                            Media manut./macchina
+                          </Typography>
+                          <Typography variant="caption" fontWeight={600} color="primary">
+                            {type.avgMaintenancesPerMachine.toFixed(1)}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Widget>
+          </Grid>
+        </Grid>
+      )}
+
     </Box>
   );
 }

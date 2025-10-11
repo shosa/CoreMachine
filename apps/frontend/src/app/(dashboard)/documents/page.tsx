@@ -112,6 +112,25 @@ export default function DocumentsPage() {
     }
   };
 
+  const handlePreview = async (id: string) => {
+    try {
+      const doc = documents.find(d => String(d.id) === String(id));
+      if (!doc) return;
+
+      const response = await axiosInstance.get(`/documents/${id}/download`, {
+        responseType: 'blob',
+      });
+      const contentType = response.headers['content-type'] || 'application/pdf';
+      const blob = new Blob([response.data], { type: contentType });
+      const blobUrl = URL.createObjectURL(blob);
+      setDocPreviewUrl(blobUrl);
+      setDocPreviewName(doc.fileName);
+      setDocPreviewOpen(true);
+    } catch (error) {
+      enqueueSnackbar('Errore durante la visualizzazione', { variant: 'error' });
+    }
+  };
+
   const handleDownload = async (id: string) => {
     try {
       const response = await axiosInstance.get(`/documents/${id}/download`, {
@@ -261,10 +280,23 @@ export default function DocumentsPage() {
     {
       field: 'actions',
       headerName: 'Azioni',
-      width: 120,
+      width: 180,
       sortable: false,
       renderCell: params => (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', height: '100%' }}>
+          <IconButton
+            size="small"
+            onClick={() => handlePreview(params.row.id)}
+            title="Anteprima"
+            sx={{
+              bgcolor: 'black',
+              color: 'white',
+              borderRadius: '6px',
+              '&:hover': { bgcolor: 'grey.800' },
+            }}
+          >
+            <Visibility fontSize="small" />
+          </IconButton>
           <IconButton
             size="small"
             onClick={() => handleDownload(params.row.id)}
@@ -472,6 +504,7 @@ export default function DocumentsPage() {
               <Grid item xs={12} sm={6} md={4} lg={3} key={document.id}>
                 <DocumentCard
                   document={document}
+                  onPreview={handlePreview}
                   onDownload={handleDownload}
                   onDelete={handleDelete}
                 />
@@ -486,6 +519,50 @@ export default function DocumentsPage() {
           </Box>
         )}
       </Widget>
+
+      {/* Document Preview Dialog */}
+      <Dialog
+        open={docPreviewOpen}
+        onClose={() => {
+          setDocPreviewOpen(false);
+          URL.revokeObjectURL(docPreviewUrl);
+        }}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: '90vh',
+            maxHeight: '90vh',
+          },
+        }}
+      >
+        <DialogTitle>
+          Anteprima Documento: {docPreviewName}
+          <IconButton
+            onClick={() => {
+              setDocPreviewOpen(false);
+              URL.revokeObjectURL(docPreviewUrl);
+            }}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
+          {docPreviewUrl && (
+            <iframe
+              src={docPreviewUrl}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                flexGrow: 1,
+              }}
+              title="Anteprima Documento"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

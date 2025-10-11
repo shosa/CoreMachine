@@ -7,7 +7,7 @@ import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
 export class MaintenancesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createMaintenanceDto: CreateMaintenanceDto, operatorId: string) {
+  async create(createMaintenanceDto: CreateMaintenanceDto) {
     // Verify machine exists
     const machine = await this.prisma.machine.findUnique({
       where: { id: createMaintenanceDto.machineId },
@@ -18,10 +18,7 @@ export class MaintenancesService {
     }
 
     return this.prisma.maintenance.create({
-      data: {
-        ...createMaintenanceDto,
-        operatorId,
-      },
+      data: createMaintenanceDto,
       include: {
         machine: {
           include: {
