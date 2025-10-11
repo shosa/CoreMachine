@@ -70,9 +70,10 @@ export default function EditMachinePage() {
         manufacturer: machine.manufacturer || '',
         model: machine.model || '',
         yearBuilt: machine.yearBuilt || undefined,
-        purchaseDate: machine.purchaseDate || '',
+        purchaseDate: machine.purchaseDate ? new Date(machine.purchaseDate).toISOString().split('T')[0] : '',
         dealer: machine.dealer || '',
         invoiceReference: machine.invoiceReference || '',
+        documentLocation: machine.documentLocation || '',
       });
 
       setTypes(typesRes.data.data || typesRes.data);
@@ -86,7 +87,14 @@ export default function EditMachinePage() {
   const onSubmit = async (data: MachineFormData) => {
     try {
       setLoading(true);
-      await axiosInstance.patch(`/machines/${params.id}`, data);
+
+      // Convert date string to ISO DateTime if provided
+      const payload = {
+        ...data,
+        purchaseDate: data.purchaseDate ? new Date(data.purchaseDate).toISOString() : null,
+      };
+
+      await axiosInstance.patch(`/machines/${params.id}`, payload);
       enqueueSnackbar('Macchinario aggiornato con successo', { variant: 'success' });
       router.push(`/machines/${params.id}`);
     } catch (error: any) {

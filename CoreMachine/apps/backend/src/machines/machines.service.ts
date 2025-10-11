@@ -33,8 +33,14 @@ export class MachinesService {
       throw new ConflictException('Serial number already exists');
     }
 
+    // Prepare data with proper date conversion
+    const data: any = { ...createMachineDto };
+    if (data.purchaseDate) {
+      data.purchaseDate = new Date(data.purchaseDate);
+    }
+
     const machine = await this.prisma.machine.create({
-      data: createMachineDto,
+      data,
       include: {
         type: {
           include: {
@@ -146,9 +152,15 @@ export class MachinesService {
       }
     }
 
+    // Prepare data with proper date conversion
+    const data: any = { ...updateMachineDto };
+    if (data.purchaseDate) {
+      data.purchaseDate = new Date(data.purchaseDate);
+    }
+
     const machine = await this.prisma.machine.update({
       where: { id },
-      data: updateMachineDto,
+      data,
       include: {
         type: {
           include: {
