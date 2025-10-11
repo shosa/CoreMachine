@@ -5,8 +5,7 @@
   "description": "Sistema di gestione centralizzata del parco macchine aziendale",
   "workspaces": [
     "packages/*",
-    "apps/*",
-    "apps/desktop"
+    "apps/*"
   ],
   "scripts": {
     "dev:backend": "npm run dev --workspace=@coremachine/backend",
