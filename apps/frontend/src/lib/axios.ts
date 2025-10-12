@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '/api' : 'http://localhost:3001/api');
+// In produzione con nginx, usa il path relativo /api
+// In sviluppo locale senza nginx, usa http://localhost:3001/api
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export const axiosInstance = axios.create({
   baseURL: API_URL,

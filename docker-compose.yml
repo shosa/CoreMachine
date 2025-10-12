@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
     environment:
       # Database - usa il MySQL condiviso
-      DATABASE_URL: mysql://${MYSQL_USER:-coremachine}:${MYSQL_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-coremachine}
+      DATABASE_URL: mysql://${MYSQL_USER:-root}:${MYSQL_PASSWORD:-rootpassword}@mysql:3306/${MYSQL_DATABASE:-coremachine}
 
       # JWT
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this}
@@ -51,11 +51,11 @@ services:
       context: .
       dockerfile: apps/frontend/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
     container_name: coremachine-frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
       NODE_ENV: production
     ports:
       - "3000:3000"
