@@ -23,6 +23,8 @@ import {
   AttachMoney,
   Construction,
   Description,
+  AttachFile,
+  Download,
 } from '@mui/icons-material';
 import PageHeader from '@/components/PageHeader';
 import axiosInstance from '@/lib/axios';
@@ -258,6 +260,58 @@ export default function MaintenanceDetailPage() {
                 <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
                   {maintenance.spareParts}
                 </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Documents Section */}
+        {maintenance.documents && maintenance.documents.length > 0 && (
+          <Grid item xs={12}>
+            <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                  <AttachFile color="primary" />
+                  <Typography variant="h6" fontWeight={600}>
+                    Documenti Allegati ({maintenance.documents.length})
+                  </Typography>
+                </Stack>
+                <Stack spacing={1}>
+                  {maintenance.documents.map((doc) => (
+                    <Stack
+                      key={doc.id}
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      sx={{
+                        p: 2,
+                        border: 1,
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'grey.50',
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="body1" fontWeight={500}>
+                          {doc.fileName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(doc.uploadedAt).toLocaleDateString('it-IT')} •
+                          {(doc.fileSize / 1024 / 1024).toFixed(2)} MB •
+                          Caricato da {doc.uploadedBy?.firstName} {doc.uploadedBy?.lastName}
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<Download />}
+                        onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
+                      >
+                        Scarica
+                      </Button>
+                    </Stack>
+                  ))}
+                </Stack>
               </CardContent>
             </Card>
           </Grid>

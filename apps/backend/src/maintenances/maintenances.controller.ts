@@ -9,7 +9,10 @@ import {
   UseGuards,
   Request,
   Query,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { MaintenancesService } from './maintenances.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
@@ -25,8 +28,13 @@ export class MaintenancesController {
 
   @Post()
   @Roles(UserRole.admin, UserRole.tecnico)
-  create(@Body() createMaintenanceDto: CreateMaintenanceDto) {
-    return this.maintenancesService.create(createMaintenanceDto);
+  @UseInterceptors(FilesInterceptor('documents'))
+  create(
+    @Body() createMaintenanceDto: CreateMaintenanceDto,
+    @UploadedFiles() documents?: any[],
+    @Request() req?: any,
+  ) {
+    return this.maintenancesService.create(createMaintenanceDto, documents, req?.user?.id);
   }
 
   @Get()

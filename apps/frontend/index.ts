@@ -87,9 +87,9 @@ export type MaintenanceType =
   | 'riparazione';
 
 export interface Maintenance {
-  id: string;
-  machineId: string;
-  operatorId: string;
+  id: number;
+  machineId: number;
+  operatorId: number;
   date: string;
   type: MaintenanceType;
   problemDescription?: string;
@@ -98,7 +98,6 @@ export interface Maintenance {
   cost?: number;
   machine?: Machine;
   operator?: User;
-  documents?: Document[];
   createdAt?: string;
   updatedAt?: string;
 }

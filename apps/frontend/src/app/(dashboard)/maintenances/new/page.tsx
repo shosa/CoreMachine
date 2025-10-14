@@ -14,8 +14,13 @@ import {
   Typography,
   Chip,
   Stack,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
-import { Save, ArrowBack } from '@mui/icons-material';
+import { Save, ArrowBack, AttachFile, Delete, CloudUpload } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -46,6 +51,7 @@ export default function NewMaintenancePage() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
   const [operators, setOperators] = useState<User[]>([]);
+  const [documents, setDocuments] = useState<File[]>([]);
 
   const {
     control,
@@ -93,6 +99,15 @@ export default function NewMaintenancePage() {
     }
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setDocuments(prev => [...prev, ...files]);
+  };
+
+  const removeDocument = (index: number) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const onSubmit = async (data: MaintenanceFormData) => {
     try {
       setLoading(true);
@@ -103,7 +118,27 @@ export default function NewMaintenancePage() {
         date: new Date(data.date).toISOString(),
       };
 
-      await axiosInstance.post('/maintenances', payload);
+      // Create FormData for multipart upload
+      const formData = new FormData();
+
+      // Add form fields
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value.toString());
+        }
+      });
+
+      // Add documents
+      documents.forEach((file, index) => {
+        formData.append('documents', file);
+      });
+
+      await axiosInstance.post('/maintenances', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
       enqueueSnackbar('Manutenzione creata con successo', { variant: 'success' });
 
       // Redirect back to machine detail if came from there
@@ -338,6 +373,63 @@ export default function NewMaintenancePage() {
                     />
                   )}
                 />
+              </Grid>
+
+              {/* Document Upload Section */}
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Documenti Allegati
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Puoi allegare documenti relativi alla manutenzione (foto, ricevute, schede tecniche, ecc.)
+                    </Typography>
+
+                    <Box sx={{ mb: 2 }}>
+                      <input
+                        accept="image/*,.pdf,.doc,.docx,.txt"
+                        style={{ display: 'none' }}
+                        id="document-upload"
+                        multiple
+                        type="file"
+                        onChange={handleFileSelect}
+                      />
+                      <label htmlFor="document-upload">
+                        <Button
+                          variant="outlined"
+                          component="span"
+                          startIcon={<CloudUpload />}
+                          size="small"
+                        >
+                          Seleziona File
+                        </Button>
+                      </label>
+                    </Box>
+
+                    {documents.length > 0 && (
+                      <List dense>
+                        {documents.map((file, index) => (
+                          <ListItem key={index} divider>
+                            <ListItemText
+                              primary={file.name}
+                              secondary={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                            />
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                edge="end"
+                                onClick={() => removeDocument(index)}
+                                size="small"
+                              >
+                                <Delete />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </CardContent>
+                </Card>
               </Grid>
 
               <Grid item xs={12}>

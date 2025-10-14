@@ -1,13 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MinioService } from '../minio/minio.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
+import { DocumentCategory } from '@prisma/client';
 
 @Injectable()
 export class MaintenancesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private minio: MinioService,
+  ) {}
 
-  async create(createMaintenanceDto: CreateMaintenanceDto) {
+  async create(createMaintenanceDto: CreateMaintenanceDto, documents?: any[], uploadedById?: string) {
     // Verify machine exists
     const machine = await this.prisma.machine.findUnique({
       where: { id: createMaintenanceDto.machineId },
@@ -17,7 +22,8 @@ export class MaintenancesService {
       throw new NotFoundException('Machine not found');
     }
 
-    return this.prisma.maintenance.create({
+    // Create maintenance first
+    const maintenance = await this.prisma.maintenance.create({
       data: createMaintenanceDto,
       include: {
         machine: {
@@ -37,8 +43,56 @@ export class MaintenancesService {
             email: true,
           },
         },
+        documents: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    // Upload documents if provided
+    if (documents && documents.length > 0 && uploadedById) {
+      const documentPromises = documents.map(async (file) => {
+        const { filePath, fileName } = await this.minio.uploadFile(file, 'maintenance-documents');
+
+        return this.prisma.document.create({
+          data: {
+            maintenanceId: maintenance.id,
+            fileName,
+            filePath,
+            fileSize: file.size,
+            mimeType: file.mimetype,
+            documentCategory: DocumentCategory.altro, // Default category for maintenance documents
+            uploadedById,
+          },
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        });
+      });
+
+      const uploadedDocuments = await Promise.all(documentPromises);
+
+      // Update maintenance with documents
+      maintenance.documents = uploadedDocuments;
+    }
+
+    return maintenance;
   }
 
   async findAll(filters?: { machineId?: string; operatorId?: string }) {
@@ -72,6 +126,18 @@ export class MaintenancesService {
             email: true,
           },
         },
+        documents: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { date: 'desc' },
     });
@@ -96,6 +162,18 @@ export class MaintenancesService {
             firstName: true,
             lastName: true,
             email: true,
+          },
+        },
+        documents: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -140,6 +218,18 @@ export class MaintenancesService {
             firstName: true,
             lastName: true,
             email: true,
+          },
+        },
+        documents: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -213,6 +303,7 @@ export class MaintenancesService {
         firstName: row.operatorFirstName,
         lastName: row.operatorLastName,
       },
+      documents: [], // Include empty documents array for consistency
     }));
   }
 }
