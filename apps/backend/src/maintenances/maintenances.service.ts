@@ -13,6 +13,8 @@ export class MaintenancesService {
   ) {}
 
   async create(createMaintenanceDto: CreateMaintenanceDto, documents?: any[], uploadedById?: string) {
+    console.log('MaintenanceService.create called with documents:', documents?.length || 0);
+
     // Verify machine exists
     const machine = await this.prisma.machine.findUnique({
       where: { id: createMaintenanceDto.machineId },
@@ -58,10 +60,17 @@ export class MaintenancesService {
       },
     });
 
+    console.log('Maintenance created:', maintenance.id);
+
     // Upload documents if provided
     if (documents && documents.length > 0 && uploadedById) {
-      const documentPromises = documents.map(async (file) => {
+      console.log('Uploading', documents.length, 'documents...');
+
+      const documentPromises = documents.map(async (file, index) => {
+        console.log(`Uploading document ${index + 1}:`, file.originalname, file.size);
         const { filePath, fileName } = await this.minio.uploadFile(file, 'maintenance-documents');
+
+        console.log(`Document ${index + 1} uploaded to:`, filePath);
 
         return this.prisma.document.create({
           data: {
@@ -87,9 +96,12 @@ export class MaintenancesService {
       });
 
       const uploadedDocuments = await Promise.all(documentPromises);
+      console.log('All documents uploaded successfully:', uploadedDocuments.length);
 
       // Update maintenance with documents
       maintenance.documents = uploadedDocuments;
+    } else {
+      console.log('No documents to upload or no uploadedById');
     }
 
     return maintenance;

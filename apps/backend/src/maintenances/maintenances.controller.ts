@@ -34,6 +34,9 @@ export class MaintenancesController {
     @UploadedFiles() documents?: any[],
     @Request() req?: any,
   ) {
+    console.log('MaintenanceController.create called');
+    console.log('Documents received:', documents?.length || 0);
+    console.log('User ID:', req?.user?.id);
     return this.maintenancesService.create(createMaintenanceDto, documents, req?.user?.id);
   }
 

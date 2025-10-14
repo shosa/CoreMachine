@@ -118,6 +118,8 @@ export default function NewMaintenancePage() {
         date: new Date(data.date).toISOString(),
       };
 
+      console.log('Submitting maintenance with documents:', documents.length);
+
       // Create FormData for multipart upload
       const formData = new FormData();
 
@@ -130,14 +132,19 @@ export default function NewMaintenancePage() {
 
       // Add documents
       documents.forEach((file, index) => {
+        console.log(`Adding document ${index + 1}:`, file.name, file.size);
         formData.append('documents', file);
       });
 
-      await axiosInstance.post('/maintenances', formData, {
+      console.log('FormData created, sending request...');
+
+      const response = await axiosInstance.post('/maintenances', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+
+      console.log('Response received:', response.data);
 
       enqueueSnackbar('Manutenzione creata con successo', { variant: 'success' });
 
@@ -148,6 +155,8 @@ export default function NewMaintenancePage() {
         router.push('/maintenances');
       }
     } catch (error: any) {
+      console.error('Upload error:', error);
+      console.error('Error response:', error.response?.data);
       enqueueSnackbar(error.response?.data?.message || 'Errore durante la creazione', {
         variant: 'error',
       });
