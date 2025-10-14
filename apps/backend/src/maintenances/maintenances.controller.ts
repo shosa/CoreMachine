@@ -54,8 +54,14 @@ export class MaintenancesController {
 
   @Patch(':id')
   @Roles(UserRole.admin, UserRole.tecnico)
-  update(@Param('id') id: string, @Body() updateMaintenanceDto: UpdateMaintenanceDto) {
-    return this.maintenancesService.update(id, updateMaintenanceDto);
+  @UseInterceptors(FilesInterceptor('documents'))
+  update(
+    @Param('id') id: string,
+    @Body() updateMaintenanceDto: UpdateMaintenanceDto,
+    @UploadedFiles() documents?: any[],
+    @Request() req?: any,
+  ) {
+    return this.maintenancesService.update(id, updateMaintenanceDto, documents, req?.user?.id);
   }
 
   @Delete(':id')

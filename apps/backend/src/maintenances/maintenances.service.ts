@@ -186,7 +186,7 @@ export class MaintenancesService {
     return maintenance;
   }
 
-  async update(id: string, updateMaintenanceDto: UpdateMaintenanceDto) {
+  async update(id: string, updateMaintenanceDto: UpdateMaintenanceDto, documents?: any[], uploadedById?: string) {
     await this.findOne(id);
 
     if (updateMaintenanceDto.machineId) {
@@ -199,7 +199,7 @@ export class MaintenancesService {
       }
     }
 
-    return this.prisma.maintenance.update({
+    const maintenance = await this.prisma.maintenance.update({
       where: { id },
       data: updateMaintenanceDto,
       include: {
@@ -234,6 +234,42 @@ export class MaintenancesService {
         },
       },
     });
+
+    // Upload additional documents if provided
+    if (documents && documents.length > 0 && uploadedById) {
+      const documentPromises = documents.map(async (file) => {
+        const { filePath, fileName } = await this.minio.uploadFile(file, 'maintenance-documents');
+
+        return this.prisma.document.create({
+          data: {
+            maintenanceId: maintenance.id,
+            fileName,
+            filePath,
+            fileSize: file.size,
+            mimeType: file.mimetype,
+            documentCategory: DocumentCategory.altro, // Default category for maintenance documents
+            uploadedById,
+          },
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        });
+      });
+
+      const uploadedDocuments = await Promise.all(documentPromises);
+
+      // Add new documents to the maintenance response
+      maintenance.documents = [...(maintenance.documents || []), ...uploadedDocuments];
+    }
+
+    return maintenance;
   }
 
   async remove(id: string) {
