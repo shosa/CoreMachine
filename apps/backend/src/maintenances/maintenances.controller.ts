@@ -72,4 +72,14 @@ export class MaintenancesController {
   remove(@Param('id') id: string) {
     return this.maintenancesService.remove(id);
   }
+
+  @Delete(':maintenanceId/documents/:documentId')
+  @Roles(UserRole.admin, UserRole.tecnico)
+  async removeDocument(
+    @Param('maintenanceId') maintenanceId: string,
+    @Param('documentId') documentId: string,
+    @Request() req: any,
+  ) {
+    return this.maintenancesService.removeDocument(maintenanceId, documentId, req.user.id);
+  }
 }

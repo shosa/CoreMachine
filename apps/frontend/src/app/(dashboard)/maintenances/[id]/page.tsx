@@ -85,6 +85,21 @@ export default function MaintenanceDetailPage() {
     }
   };
 
+  const handleRemoveDocument = async (documentId: string) => {
+    if (!confirm('Sei sicuro di voler rimuovere questo documento?')) {
+      return;
+    }
+
+    try {
+      await axiosInstance.delete(`/maintenances/${params.id}/documents/${documentId}`);
+      enqueueSnackbar('Documento rimosso con successo', { variant: 'success' });
+      // Refresh maintenance data
+      fetchMaintenance();
+    } catch (error: any) {
+      enqueueSnackbar('Errore nella rimozione del documento', { variant: 'error' });
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -301,14 +316,24 @@ export default function MaintenanceDetailPage() {
                           Caricato da {doc.uploadedBy?.firstName} {doc.uploadedBy?.lastName}
                         </Typography>
                       </Box>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<Download />}
-                        onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
-                      >
-                        Scarica
-                      </Button>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<Download />}
+                          onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
+                        >
+                          Scarica
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="error"
+                          onClick={() => handleRemoveDocument(doc.id)}
+                        >
+                          Rimuovi
+                        </Button>
+                      </Stack>
                     </Stack>
                   ))}
                 </Stack>

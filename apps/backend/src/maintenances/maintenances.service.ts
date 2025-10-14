@@ -294,6 +294,34 @@ export class MaintenancesService {
     return { message: 'Maintenance deleted successfully' };
   }
 
+  async removeDocument(maintenanceId: string, documentId: string, userId: string) {
+    // Verify maintenance exists and user has access
+    const maintenance = await this.prisma.maintenance.findUnique({
+      where: { id: maintenanceId },
+      include: { documents: true },
+    });
+
+    if (!maintenance) {
+      throw new NotFoundException('Maintenance not found');
+    }
+
+    // Find the document
+    const document = maintenance.documents.find(doc => doc.id === documentId);
+    if (!document) {
+      throw new NotFoundException('Document not found in this maintenance');
+    }
+
+    // Delete from MinIO
+    await this.minio.deleteFile(document.filePath);
+
+    // Delete from database
+    await this.prisma.document.delete({
+      where: { id: documentId },
+    });
+
+    return { message: 'Document removed successfully' };
+  }
+
   async search(query: string) {
     if (!query || query.length < 2) {
       return [];
