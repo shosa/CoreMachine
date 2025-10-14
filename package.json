@@ -10,7 +10,6 @@
   "scripts": {
     "dev:backend": "npm run dev --workspace=@coremachine/backend",
     "dev:frontend": "npm run dev --workspace=@coremachine/frontend",
-    "dev:desktop": "npm run dev --workspace=@coremachine/desktop",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build:backend": "npm run build --workspace=@coremachine/backend",
     "build:frontend": "npm run build --workspace=@coremachine/frontend",
