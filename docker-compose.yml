@@ -72,24 +72,10 @@ services:
     networks:
       - core-network  # Usa la network condivisa
 
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: coremachine-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - core-network  # Usa la network condivisa
+# Nginx è gestito centralmente da CoreServices (core-nginx)
+# Accesso: http://localhost:80
 
-# Usa la network esterna creata da docker-compose.services.yml
+# Usa la network esterna creata da CoreServices
 networks:
   core-network:
     external: true
