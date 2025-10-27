@@ -20,6 +20,9 @@ export default function RootLayout({
 
   return (
     <html lang="it">
+      <head>
+        <title>CoreMachine</title>
+      </head>
       <body>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
