@@ -320,17 +320,25 @@ export default function MachinesPage() {
         title="Macchinari"
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Macchinari' }]}
         renderRight={
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             <Button
               variant="outlined"
-              startIcon={<FileDownload />}
+              startIcon={<FileDownload sx={{ display: { xs: 'none', sm: 'block' } }} />}
               onClick={(e) => setExportMenuAnchor(e.currentTarget)}
+              size="small"
+              sx={{ flex: { xs: 1, sm: 'initial' } }}
             >
               Esporta
             </Button>
             {hasRole('admin') && (
-              <Button variant="contained" startIcon={<Add />} onClick={() => router.push('/machines/new')}>
-                Aggiungi Macchinario
+              <Button
+                variant="contained"
+                startIcon={<Add sx={{ display: { xs: 'none', sm: 'block' } }} />}
+                onClick={() => router.push('/machines/new')}
+                size="small"
+                sx={{ flex: { xs: 1, sm: 'initial' } }}
+              >
+                Aggiungi
               </Button>
             )}
           </Stack>
@@ -358,16 +366,25 @@ export default function MachinesPage() {
 
       <Widget>
         {/* Toolbar: Search + View Toggle + Sort */}
-        <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{
+          mb: 3,
+          display: 'flex',
+          gap: 2,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}>
           <TextField
-            fullWidth
             placeholder="Cerca per matricola, produttore, modello o tipo..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            size="small"
             InputProps={{
               startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
             }}
-            sx={{ flex: 1, minWidth: 250 }}
+            sx={{
+              flex: 1,
+              minWidth: { xs: '100%', sm: 250 },
+            }}
           />
 
           <ToggleButtonGroup
@@ -375,6 +392,7 @@ export default function MachinesPage() {
             exclusive
             onChange={(e, newMode) => newMode && setViewMode(newMode)}
             size="small"
+            sx={{ display: { xs: 'none', sm: 'flex' } }}
           >
             <ToggleButton value="table" aria-label="vista tabella">
               <ViewList />
@@ -384,7 +402,12 @@ export default function MachinesPage() {
             </ToggleButton>
           </ToggleButtonGroup>
 
-          <FormControl size="small" sx={{ minWidth: 180 }}>
+          <FormControl
+            size="small"
+            sx={{
+              minWidth: { xs: '100%', sm: 180 },
+            }}
+          >
             <InputLabel>Ordina per</InputLabel>
             <Select value={sortBy} label="Ordina per" onChange={(e) => setSortBy(e.target.value as SortOption)}>
               <MenuItem value="serialNumber">Matricola</MenuItem>
@@ -398,18 +421,25 @@ export default function MachinesPage() {
         </Box>
 
         {/* Filtri avanzati */}
-        <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FilterList />
-              <Box sx={{ fontWeight: 600 }}>Filtri</Box>
+        <Box sx={{ mb: 3, p: { xs: 1.5, sm: 2 }, bgcolor: 'grey.50', borderRadius: 1 }}>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            justifyContent: 'space-between',
+            mb: 2,
+            gap: 1,
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <FilterList fontSize="small" />
+              <Box sx={{ fontWeight: 600, fontSize: { xs: '0.875rem', sm: '1rem' } }}>Filtri</Box>
               {activeFiltersCount > 0 && (
                 <Chip label={`${activeFiltersCount} attivi`} size="small" color="primary" />
               )}
             </Box>
             {activeFiltersCount > 0 && (
               <Button size="small" onClick={handleClearFilters}>
-                Pulisci filtri
+                Pulisci
               </Button>
             )}
           </Box>
@@ -495,25 +525,34 @@ export default function MachinesPage() {
             <CircularProgress />
           </Box>
         ) : viewMode === 'table' ? (
-          <DataGrid
-            rows={filteredAndSortedMachines}
-            columns={columns}
-            autoHeight
-            pageSizeOptions={[10, 25, 50, 100]}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 25 } },
-            }}
-            disableRowSelectionOnClick
-            sx={{
-              border: 0,
-              '& .MuiDataGrid-cell': {
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-              },
-            }}
-          />
+          <Box sx={{ width: '100%', overflowX: 'auto' }}>
+            <DataGrid
+              rows={filteredAndSortedMachines}
+              columns={columns}
+              autoHeight
+              pageSizeOptions={[10, 25, 50, 100]}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 25 } },
+              }}
+              disableRowSelectionOnClick
+              sx={{
+                border: 0,
+                minWidth: { xs: 600, sm: '100%' },
+                '& .MuiDataGrid-cell': {
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                },
+                '& .MuiDataGrid-columnHeaders': {
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                },
+                '& .MuiDataGrid-cell': {
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                },
+              }}
+            />
+          </Box>
         ) : (
-          <Grid container spacing={3}>
+          <Grid container spacing={{ xs: 2, sm: 3 }}>
             {filteredAndSortedMachines.map((machine) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={machine.id}>
                 <MachineCard

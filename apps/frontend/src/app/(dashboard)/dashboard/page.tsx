@@ -51,30 +51,38 @@ interface StatCardProps {
 function StatCard({ title, value, icon, color, trend, subtitle }: StatCardProps) {
   return (
     <Widget>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
             {title}
           </Typography>
-          <Typography variant="h3" fontWeight={700} sx={{ mb: 0.5 }}>
+          <Typography
+            variant="h3"
+            fontWeight={700}
+            sx={{
+              mb: 0.5,
+              fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3rem' },
+            }}
+          >
             {value}
           </Typography>
           {subtitle && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
               {subtitle}
             </Typography>
           )}
           {trend !== undefined && trend !== 0 && (
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
               {trend > 0 ? (
-                <TrendingUp sx={{ fontSize: 16, color: 'success.main', mr: 0.5 }} />
+                <TrendingUp sx={{ fontSize: { xs: 14, sm: 16 }, color: 'success.main', mr: 0.5 }} />
               ) : (
-                <TrendingDown sx={{ fontSize: 16, color: 'error.main', mr: 0.5 }} />
+                <TrendingDown sx={{ fontSize: { xs: 14, sm: 16 }, color: 'error.main', mr: 0.5 }} />
               )}
               <Typography
                 variant="caption"
                 color={trend > 0 ? 'success.main' : 'error.main'}
                 fontWeight={600}
+                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
               >
                 {Math.abs(trend)}% vs mese scorso
               </Typography>
@@ -83,14 +91,15 @@ function StatCard({ title, value, icon, color, trend, subtitle }: StatCardProps)
         </Box>
         <Box
           sx={{
-            width: 56,
-            height: 56,
+            width: { xs: 48, sm: 56 },
+            height: { xs: 48, sm: 56 },
             borderRadius: 2,
             bgcolor: `${color}15`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: color,
+            flexShrink: 0,
           }}
         >
           {icon}
@@ -164,12 +173,12 @@ export default function DashboardPage() {
       <PageHeader title="Dashboard" />
 
       {/* KPI Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3 } }}>
         <Grid item xs={12} sm={6} md={4}>
           <StatCard
             title="Macchinari Censiti"
             value={stats?.overview?.totalMachines || 0}
-            icon={<PrecisionManufacturing sx={{ fontSize: 28 }} />}
+            icon={<PrecisionManufacturing sx={{ fontSize: { xs: 24, sm: 28 } }} />}
             color="#1976d2"
             trend={stats?.thisMonth?.machinesTrend}
           />
@@ -178,7 +187,7 @@ export default function DashboardPage() {
           <StatCard
             title="Manutenzioni (Mese)"
             value={stats?.thisMonth?.maintenances || 0}
-            icon={<Build sx={{ fontSize: 28 }} />}
+            icon={<Build sx={{ fontSize: { xs: 24, sm: 28 } }} />}
             color="#ed6c02"
             trend={stats?.thisMonth?.maintenanceTrend}
           />
@@ -187,7 +196,7 @@ export default function DashboardPage() {
           <StatCard
             title="Manutenzioni in Scadenza"
             value={stats?.overview?.upcomingScheduled || 0}
-            icon={<Schedule sx={{ fontSize: 28 }} />}
+            icon={<Schedule sx={{ fontSize: { xs: 24, sm: 28 } }} />}
             color="#9c27b0"
             subtitle="Prossimi 30 giorni"
           />
@@ -195,22 +204,23 @@ export default function DashboardPage() {
       </Grid>
 
       {/* Charts Row 1 */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3 } }}>
         <Grid item xs={12} lg={8}>
           <Widget title="Trend Manutenzioni (Ultimi 6 Mesi)">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={{ xs: 250, sm: 300 }}>
               <LineChart data={trendsChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" style={{ fontSize: 12 }} />
-                <YAxis style={{ fontSize: 12 }} />
+                <XAxis dataKey="month" style={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+                <YAxis style={{ fontSize: 10 }} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'white',
                     border: '1px solid #ccc',
                     borderRadius: 8,
+                    fontSize: '0.875rem',
                   }}
                 />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: '0.875rem' }} />
                 <Line
                   type="monotone"
                   dataKey="manutenzioni"
@@ -224,8 +234,8 @@ export default function DashboardPage() {
         </Grid>
 
         <Grid item xs={12} lg={4}>
-          <Widget title="Distribuzione Macchinari per Categoria">
-            <ResponsiveContainer width="100%" height={300}>
+          <Widget title="Distribuzione Macchinari">
+            <ResponsiveContainer width="100%" height={{ xs: 250, sm: 300 }}>
               <PieChart>
                 <Pie
                   data={machinesByCategoryData}
@@ -233,15 +243,16 @@ export default function DashboardPage() {
                   cy="50%"
                   labelLine={false}
                   label={(entry) => `${entry.name}: ${entry.value}`}
-                  outerRadius={80}
+                  outerRadius={{ xs: 60, sm: 80 }}
                   fill="#8884d8"
                   dataKey="value"
+                  style={{ fontSize: '0.75rem' }}
                 >
                   {machinesByCategoryData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ fontSize: '0.875rem' }} />
               </PieChart>
             </ResponsiveContainer>
           </Widget>
@@ -250,10 +261,10 @@ export default function DashboardPage() {
 
       {/* Type Analysis */}
       {typeAnalysis?.byType && typeAnalysis.byType.length > 0 && (
-        <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3 } }}>
           <Grid item xs={12}>
             <Widget title="Analisi per Tipologia Macchinario">
-              <Grid container spacing={2}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }}>
                 {typeAnalysis.byType.slice(0, 6).map((type: any, index: number) => (
                   <Grid item xs={12} sm={6} md={4} key={type.type}>
                     <Card
@@ -261,40 +272,50 @@ export default function DashboardPage() {
                         bgcolor: 'background.default',
                         border: '1px solid',
                         borderColor: 'divider',
+                        height: '100%',
                       }}
                     >
-                      <CardContent>
-                        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+                      <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight={600}
+                          gutterBottom
+                          sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                          noWrap
+                        >
                           {type.type}
                         </Typography>
                         <Chip
                           label={type.category}
                           size="small"
-                          sx={{ mb: 2 }}
+                          sx={{
+                            mb: { xs: 1, sm: 2 },
+                            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                          }}
                           color="primary"
                           variant="outlined"
                         />
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2" color="text.secondary">
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                             Macchinari
                           </Typography>
-                          <Typography variant="body2" fontWeight={600}>
+                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                             {type.machineCount}
                           </Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2" color="text.secondary">
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                             Tot. Manutenzioni
                           </Typography>
-                          <Typography variant="body2" fontWeight={600}>
+                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                             {type.totalMaintenances}
                           </Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                          <Typography variant="body2" color="text.secondary">
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                             Tot. Documenti
                           </Typography>
-                          <Typography variant="body2" fontWeight={600}>
+                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                             {type.totalDocuments}
                           </Typography>
                         </Box>
@@ -307,10 +328,10 @@ export default function DashboardPage() {
                             borderColor: 'divider',
                           }}
                         >
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                             Media manut./macchina
                           </Typography>
-                          <Typography variant="caption" fontWeight={600} color="primary">
+                          <Typography variant="caption" fontWeight={600} color="primary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                             {type.avgMaintenancesPerMachine.toFixed(1)}
                           </Typography>
                         </Box>
