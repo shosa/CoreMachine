@@ -1,7 +1,5 @@
 'use client';
 
-import { Card, CardContent, CardActions, Box, Typography, Chip, IconButton, Tooltip, Avatar } from '@mui/material';
-import { Edit, Delete, PersonOutline } from '@mui/icons-material';
 import { User } from '@/types';
 
 interface UserCardProps {
@@ -11,10 +9,10 @@ interface UserCardProps {
 }
 
 export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
-  const roleColors: Record<string, 'primary' | 'success' | 'default'> = {
-    admin: 'primary',
-    tecnico: 'success',
-    utente: 'default',
+  const roleBadgeClass: Record<string, string> = {
+    admin: 'badge badge-blue',
+    tecnico: 'badge badge-green',
+    utente: 'badge badge-gray',
   };
 
   const roleLabels: Record<string, string> = {
@@ -26,84 +24,63 @@ export default function UserCard({ user, onEdit, onDelete }: UserCardProps) {
   const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase();
 
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.2s',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: 4,
-        },
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
-          <Avatar
-            sx={{
-              bgcolor: user.isActive ? 'primary.main' : 'grey.400',
-              width: 56,
-              height: 56,
-            }}
+    <div className="card p-4 h-full flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-200">
+      <div className="flex-1">
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className={`w-14 h-14 rounded-full flex items-center justify-center font-semibold text-white ${
+              user.isActive ? 'bg-blue-600' : 'bg-gray-400'
+            }`}
           >
-            {initials || <PersonOutline />}
-          </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" component="div" sx={{ fontWeight: 600, mb: 0.5 }}>
+            {initials || (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 truncate">
               {user.firstName} {user.lastName}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-              {user.email}
-            </Typography>
-          </Box>
-        </Box>
+            </h3>
+            <p className="text-sm text-gray-500 truncate">{user.email}</p>
+          </div>
+        </div>
 
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Chip label={roleLabels[user.role] || user.role} color={roleColors[user.role]} size="small" />
-          <Chip
-            label={user.isActive ? 'Attivo' : 'Inattivo'}
-            color={user.isActive ? 'success' : 'default'}
-            size="small"
-          />
-        </Box>
-      </CardContent>
+        <div className="flex gap-2 flex-wrap">
+          <span className={roleBadgeClass[user.role] || 'badge badge-gray'}>
+            {roleLabels[user.role] || user.role}
+          </span>
+          <span className={user.isActive ? 'badge badge-green' : 'badge badge-gray'}>
+            {user.isActive ? 'Attivo' : 'Inattivo'}
+          </span>
+        </div>
+      </div>
 
-      <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
+      <div className="flex justify-end gap-1 mt-4 pt-3 border-t border-gray-100">
         {onEdit && (
-          <Tooltip title="Modifica">
-            <IconButton
-              size="small"
-              onClick={() => onEdit(user.id)}
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Edit fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <button
+            onClick={() => onEdit(user.id)}
+            className="p-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+            title="Modifica"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
         )}
 
         {onDelete && (
-          <Tooltip title="Elimina">
-            <IconButton
-              size="small"
-              onClick={() => onDelete(user.id)}
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Delete fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <button
+            onClick={() => onDelete(user.id)}
+            className="p-2 rounded-lg bg-gray-900 text-white hover:bg-red-600 transition-colors"
+            title="Elimina"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
         )}
-      </CardActions>
-    </Card>
+      </div>
+    </div>
   );
 }

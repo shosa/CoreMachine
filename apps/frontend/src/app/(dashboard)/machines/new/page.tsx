@@ -2,22 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Box,
-  Button,
-  TextField,
-  MenuItem,
-  Grid,
-  CircularProgress,
-} from '@mui/material';
-import { Save, ArrowBack } from '@mui/icons-material';
+import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import PageHeader from '@/components/PageHeader';
 import Widget from '@/components/Widget';
 import axiosInstance from '@/lib/axios';
-import { useSnackbar } from 'notistack';
+import { useToast } from '@/components/Toast';
 import { MachineFormData, Type } from '@/types';
 
 const schema = yup.object({
@@ -35,7 +26,7 @@ const schema = yup.object({
 
 export default function NewMachinePage() {
   const router = useRouter();
-  const { enqueueSnackbar } = useSnackbar();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [types, setTypes] = useState<Type[]>([]);
 
@@ -68,7 +59,7 @@ export default function NewMachinePage() {
       const response = await axiosInstance.get('/types');
       setTypes(response.data.data || response.data);
     } catch (error: any) {
-      enqueueSnackbar('Errore nel caricamento dei tipi', { variant: 'error' });
+      toast.showError('Errore nel caricamento dei tipi');
     }
   };
 
@@ -76,221 +67,206 @@ export default function NewMachinePage() {
     try {
       setLoading(true);
 
-      // Convert date string to ISO DateTime if provided
       const payload = {
         ...data,
         purchaseDate: data.purchaseDate ? new Date(data.purchaseDate).toISOString() : null,
       };
 
       await axiosInstance.post('/machines', payload);
-      enqueueSnackbar('Macchinario creato con successo', { variant: 'success' });
+      toast.showSuccess('Macchinario creato con successo');
       router.push('/machines');
     } catch (error: any) {
-      enqueueSnackbar(error.response?.data?.message || 'Errore durante la creazione', { variant: 'error' });
+      toast.showError(error.response?.data?.message || 'Errore durante la creazione');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box>
-      <PageHeader
-        title="Nuovo Macchinario"
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Macchinari', href: '/machines' },
-          { label: 'Nuovo' },
-        ]}
-      />
+    <div>
+      {/* Breadcrumbs + title */}
+      <div className="mb-6">
+        <nav className="flex items-center gap-1 text-sm text-gray-500 mb-2">
+          <Link href="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
+          <span>/</span>
+          <Link href="/machines" className="hover:text-gray-900 transition-colors">Macchinari</Link>
+          <span>/</span>
+          <span className="text-gray-900 font-medium">Nuovo</span>
+        </nav>
+        <h1 className="text-2xl font-bold text-gray-900">Nuovo Macchinario</h1>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Widget>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Tipo */}
+            <div>
+              <label className="label">Tipo *</label>
               <Controller
                 name="typeId"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    select
-                    label="Tipo *"
-                    error={!!errors.typeId}
-                    helperText={errors.typeId?.message}
-                  >
-                    <MenuItem value={0}>Seleziona un tipo</MenuItem>
+                  <select {...field} className={`input ${errors.typeId ? 'border-red-500' : ''}`}>
+                    <option value="">Seleziona un tipo</option>
                     {types.map((type) => (
-                      <MenuItem key={type.id} value={type.id}>
+                      <option key={type.id} value={type.id}>
                         {type.name} ({type.category?.name})
-                      </MenuItem>
+                      </option>
                     ))}
-                  </TextField>
+                  </select>
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+              {errors.typeId && <p className="text-red-500 text-xs mt-1">{errors.typeId.message}</p>}
+            </div>
+
+            {/* Matricola */}
+            <div>
+              <label className="label">Matricola *</label>
               <Controller
                 name="serialNumber"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Matricola *"
-                    error={!!errors.serialNumber}
-                    helperText={errors.serialNumber?.message}
-                  />
+                  <input {...field} className={`input ${errors.serialNumber ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-            <Grid item xs={12}>
+              {errors.serialNumber && <p className="text-red-500 text-xs mt-1">{errors.serialNumber.message}</p>}
+            </div>
+
+            {/* Descrizione - full width */}
+            <div className="md:col-span-2">
+              <label className="label">Descrizione</label>
               <Controller
                 name="description"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Descrizione"
-                    multiline
-                    rows={3}
-                    error={!!errors.description}
-                    helperText={errors.description?.message}
-                  />
+                  <textarea {...field} rows={3} className={`input ${errors.description ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+              {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
+            </div>
+
+            {/* Produttore */}
+            <div>
+              <label className="label">Produttore</label>
               <Controller
                 name="manufacturer"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Produttore"
-                    error={!!errors.manufacturer}
-                    helperText={errors.manufacturer?.message}
-                  />
+                  <input {...field} className={`input ${errors.manufacturer ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+              {errors.manufacturer && <p className="text-red-500 text-xs mt-1">{errors.manufacturer.message}</p>}
+            </div>
+
+            {/* Modello */}
+            <div>
+              <label className="label">Modello</label>
               <Controller
                 name="model"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Modello"
-                    error={!!errors.model}
-                    helperText={errors.model?.message}
-                  />
+                  <input {...field} className={`input ${errors.model ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+              {errors.model && <p className="text-red-500 text-xs mt-1">{errors.model.message}</p>}
+            </div>
+
+            {/* Anno di Costruzione */}
+            <div>
+              <label className="label">Anno di Costruzione</label>
               <Controller
                 name="yearBuilt"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Anno di Costruzione"
-                    type="number"
-                    error={!!errors.yearBuilt}
-                    helperText={errors.yearBuilt?.message}
-                  />
+                  <input {...field} type="number" className={`input ${errors.yearBuilt ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+              {errors.yearBuilt && <p className="text-red-500 text-xs mt-1">{errors.yearBuilt.message}</p>}
+            </div>
+
+            {/* Data di Acquisto */}
+            <div>
+              <label className="label">Data di Acquisto</label>
               <Controller
                 name="purchaseDate"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Data di Acquisto"
-                    type="date"
-                    InputLabelProps={{ shrink: true }}
-                    error={!!errors.purchaseDate}
-                    helperText={errors.purchaseDate?.message}
-                  />
+                  <input {...field} type="date" className={`input ${errors.purchaseDate ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+              {errors.purchaseDate && <p className="text-red-500 text-xs mt-1">{errors.purchaseDate.message}</p>}
+            </div>
+
+            {/* Rivenditore */}
+            <div>
+              <label className="label">Rivenditore</label>
               <Controller
                 name="dealer"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Rivenditore"
-                    error={!!errors.dealer}
-                    helperText={errors.dealer?.message}
-                  />
+                  <input {...field} className={`input ${errors.dealer ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+              {errors.dealer && <p className="text-red-500 text-xs mt-1">{errors.dealer.message}</p>}
+            </div>
+
+            {/* Riferimento Fattura */}
+            <div>
+              <label className="label">Riferimento Fattura</label>
               <Controller
                 name="invoiceReference"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Riferimento Fattura"
-                    error={!!errors.invoiceReference}
-                    helperText={errors.invoiceReference?.message}
-                  />
+                  <input {...field} className={`input ${errors.invoiceReference ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+              {errors.invoiceReference && <p className="text-red-500 text-xs mt-1">{errors.invoiceReference.message}</p>}
+            </div>
+
+            {/* Locazione Documenti */}
+            <div>
+              <label className="label">Locazione Documenti</label>
               <Controller
                 name="documentLocation"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Locazione Documenti"
-                    error={!!errors.documentLocation}
-                    helperText={errors.documentLocation?.message}
-                  />
+                  <input {...field} className={`input ${errors.documentLocation ? 'border-red-500' : ''}`} />
                 )}
               />
-            </Grid>
-          </Grid>
+              {errors.documentLocation && <p className="text-red-500 text-xs mt-1">{errors.documentLocation.message}</p>}
+            </div>
+          </div>
 
-          <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
-            <Button
-              variant="outlined"
-              startIcon={<ArrowBack />}
+          {/* Action buttons */}
+          <div className="flex gap-3 mt-8">
+            <button
+              type="button"
               onClick={() => router.push('/machines')}
               disabled={loading}
+              className="btn btn-secondary flex items-center gap-2"
             >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
               Annulla
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              variant="contained"
-              startIcon={loading ? <CircularProgress size={20} /> : <Save />}
               disabled={loading}
+              className="btn btn-primary flex items-center gap-2"
             >
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
               Salva
-            </Button>
-          </Box>
+            </button>
+          </div>
         </Widget>
       </form>
-    </Box>
+    </div>
   );
 }

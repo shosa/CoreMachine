@@ -1,7 +1,5 @@
 'use client';
 
-import { Card, CardContent, CardActions, Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
-import { Delete, Download, Description, PictureAsPdf, Image, InsertDriveFile, Visibility } from '@mui/icons-material';
 import { Document } from '@/types';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -22,19 +20,34 @@ export default function DocumentCard({ document, onPreview, onDownload, onDelete
     altro: 'Altro',
   };
 
-  const categoryColors: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'default'> = {
-    manuale_uso: 'info',
-    certificazione_ce: 'success',
-    scheda_tecnica: 'primary',
-    fattura_acquisto: 'warning',
-    altro: 'default',
+  const categoryBadgeClass: Record<string, string> = {
+    manuale_uso: 'badge badge-blue',
+    certificazione_ce: 'badge badge-green',
+    scheda_tecnica: 'badge badge-purple',
+    fattura_acquisto: 'badge badge-yellow',
+    altro: 'badge badge-gray',
   };
 
   const getFileIcon = (mimeType: string) => {
-    if (mimeType.includes('pdf')) return <PictureAsPdf sx={{ fontSize: 48, color: 'error.main' }} />;
-    if (mimeType.includes('image')) return <Image sx={{ fontSize: 48, color: 'info.main' }} />;
-    if (mimeType.includes('text')) return <Description sx={{ fontSize: 48, color: 'primary.main' }} />;
-    return <InsertDriveFile sx={{ fontSize: 48, color: 'text.secondary' }} />;
+    if (mimeType?.includes('pdf')) {
+      return (
+        <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      );
+    }
+    if (mimeType?.includes('image')) {
+      return (
+        <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      );
+    }
+    return (
+      <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    );
   };
 
   const formatFileSize = (bytes: number) => {
@@ -43,127 +56,88 @@ export default function DocumentCard({ document, onPreview, onDownload, onDelete
   };
 
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.2s',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: 4,
-        },
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+    <div className="card p-4 h-full flex flex-col hover:-translate-y-1 hover:shadow-lg transition-all duration-200">
+      <div className="flex-1">
+        <div className="flex justify-center mb-3">
           {getFileIcon(document.mimeType || '')}
-        </Box>
+        </div>
 
-        <Typography
-          variant="subtitle1"
-          fontWeight={600}
-          sx={{
-            mb: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
+        <h3
+          className="font-semibold text-gray-900 mb-2 truncate"
           title={document.fileName}
         >
           {document.fileName}
-        </Typography>
+        </h3>
 
-        <Chip
-          label={categoryLabels[document.documentCategory] || document.documentCategory}
-          color={categoryColors[document.documentCategory] || 'default'}
-          size="small"
-          sx={{ mb: 2 }}
-        />
+        <div className="mb-3">
+          <span className={categoryBadgeClass[document.documentCategory] || 'badge badge-gray'}>
+            {categoryLabels[document.documentCategory] || document.documentCategory}
+          </span>
+        </div>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Box>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Macchinario
-            </Typography>
-            <Typography variant="body2" fontWeight={500}>
-              {document.machine ?
-                `${document.machine.model || document.machine.manufacturer || ''} (${document.machine.serialNumber})`.trim()
+        <div className="space-y-2 text-sm">
+          <div>
+            <span className="text-gray-400 text-xs">Macchinario</span>
+            <p className="font-medium text-gray-700">
+              {document.machine
+                ? `${document.machine.model || document.machine.manufacturer || ''} (${document.machine.serialNumber})`.trim()
                 : '-'}
-            </Typography>
-          </Box>
+            </p>
+          </div>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Dimensione
-              </Typography>
-              <Typography variant="body2">{formatFileSize(document.fileSize || 0)}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Caricato il
-              </Typography>
-              <Typography variant="body2">
+          <div className="flex justify-between">
+            <div>
+              <span className="text-gray-400 text-xs">Dimensione</span>
+              <p className="text-gray-600">{formatFileSize(document.fileSize || 0)}</p>
+            </div>
+            <div className="text-right">
+              <span className="text-gray-400 text-xs">Caricato il</span>
+              <p className="text-gray-600">
                 {format(new Date(document.uploadedAt || new Date()), 'dd/MM/yyyy', { locale: it })}
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-      </CardContent>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
+      <div className="flex justify-end gap-1 mt-4 pt-3 border-t border-gray-100">
         {onPreview && (
-          <Tooltip title="Anteprima">
-            <IconButton
-              size="small"
-              onClick={() => onPreview(document.id)}
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Visibility fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <button
+            onClick={() => onPreview(document.id)}
+            className="p-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+            title="Anteprima"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
         )}
 
         {onDownload && (
-          <Tooltip title="Scarica">
-            <IconButton
-              size="small"
-              onClick={() => onDownload(document.id)}
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Download fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <button
+            onClick={() => onDownload(document.id)}
+            className="p-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+            title="Scarica"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
         )}
 
         {onDelete && (
-          <Tooltip title="Elimina">
-            <IconButton
-              size="small"
-              onClick={() => onDelete(document.id)}
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Delete fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <button
+            onClick={() => onDelete(document.id)}
+            className="p-2 rounded-lg bg-gray-900 text-white hover:bg-red-600 transition-colors"
+            title="Elimina"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
         )}
-      </CardActions>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,31 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  Grid,
-  Box,
-  Typography,
-  CircularProgress,
-  Card,
-  CardContent,
-  Chip,
-} from '@mui/material';
-import {
-  PrecisionManufacturing,
-  Build,
-  TrendingUp,
-  TrendingDown,
-  Schedule,
-} from '@mui/icons-material';
-import PageHeader from '@/components/PageHeader';
-import Widget from '@/components/Widget';
 import axiosInstance from '@/lib/axios';
-import { useSnackbar } from 'notistack';
+import { useToast } from '@/components/Toast';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import {
-  BarChart,
-  Bar,
   LineChart,
   Line,
   PieChart,
@@ -50,62 +30,39 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, color, trend, subtitle }: StatCardProps) {
   return (
-    <Widget>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-            {title}
-          </Typography>
-          <Typography
-            variant="h3"
-            fontWeight={700}
-            sx={{
-              mb: 0.5,
-              fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3rem' },
-            }}
-          >
-            {value}
-          </Typography>
+    <div className="card p-6">
+      <div className="flex justify-between items-start gap-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-gray-500 mb-1">{title}</p>
+          <p className="text-3xl md:text-4xl font-bold text-gray-900">{value}</p>
           {subtitle && (
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-              {subtitle}
-            </Typography>
+            <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
           )}
           {trend !== undefined && trend !== 0 && (
-            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+            <div className="flex items-center gap-1 mt-2">
               {trend > 0 ? (
-                <TrendingUp sx={{ fontSize: { xs: 14, sm: 16 }, color: 'success.main', mr: 0.5 }} />
+                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
               ) : (
-                <TrendingDown sx={{ fontSize: { xs: 14, sm: 16 }, color: 'error.main', mr: 0.5 }} />
+                <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                </svg>
               )}
-              <Typography
-                variant="caption"
-                color={trend > 0 ? 'success.main' : 'error.main'}
-                fontWeight={600}
-                sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-              >
+              <span className={`text-xs font-semibold ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {Math.abs(trend)}% vs mese scorso
-              </Typography>
-            </Box>
+              </span>
+            </div>
           )}
-        </Box>
-        <Box
-          sx={{
-            width: { xs: 48, sm: 56 },
-            height: { xs: 48, sm: 56 },
-            borderRadius: 2,
-            bgcolor: `${color}15`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: color,
-            flexShrink: 0,
-          }}
+        </div>
+        <div
+          className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${color}15`, color: color }}
         >
           {icon}
-        </Box>
-      </Box>
-    </Widget>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -113,9 +70,8 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [trends, setTrends] = useState<any[]>([]);
   const [typeAnalysis, setTypeAnalysis] = useState<any>(null);
-  const [machineHealth, setMachineHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const { enqueueSnackbar } = useSnackbar();
+  const { showError } = useToast();
 
   useEffect(() => {
     fetchDashboardData();
@@ -124,37 +80,33 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, trendsRes, typesRes, healthRes] = await Promise.all([
+      const [statsRes, trendsRes, typesRes] = await Promise.all([
         axiosInstance.get('/stats/dashboard'),
         axiosInstance.get('/stats/maintenance-trends'),
         axiosInstance.get('/stats/type-analysis'),
-        axiosInstance.get('/stats/machine-health'),
       ]);
 
       setStats(statsRes.data);
       setTrends(trendsRes.data);
       setTypeAnalysis(typesRes.data);
-      setMachineHealth(healthRes.data);
     } catch (error: any) {
-      enqueueSnackbar('Errore nel caricamento dei dati', { variant: 'error' });
+      showError('Errore nel caricamento dei dati');
       console.error('Dashboard error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Category colors
   const CATEGORY_COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1'];
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div className="flex justify-center items-center h-[50vh]">
+        <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+      </div>
     );
   }
 
-  // Prepare data for charts
   const machinesByCategoryData = stats?.machinesByCategory
     ? Object.entries(stats.machinesByCategory).map(([category, count], index) => ({
         name: category,
@@ -169,182 +121,144 @@ export default function DashboardPage() {
   }));
 
   return (
-    <Box>
-      <PageHeader title="Dashboard" />
+    <div>
+      {/* Page Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm text-gray-500 mt-1">Panoramica del sistema</p>
+      </div>
 
       {/* KPI Cards */}
-      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard
-            title="Macchinari Censiti"
-            value={stats?.overview?.totalMachines || 0}
-            icon={<PrecisionManufacturing sx={{ fontSize: { xs: 24, sm: 28 } }} />}
-            color="#1976d2"
-            trend={stats?.thisMonth?.machinesTrend}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard
-            title="Manutenzioni (Mese)"
-            value={stats?.thisMonth?.maintenances || 0}
-            icon={<Build sx={{ fontSize: { xs: 24, sm: 28 } }} />}
-            color="#ed6c02"
-            trend={stats?.thisMonth?.maintenanceTrend}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <StatCard
-            title="Manutenzioni in Scadenza"
-            value={stats?.overview?.upcomingScheduled || 0}
-            icon={<Schedule sx={{ fontSize: { xs: 24, sm: 28 } }} />}
-            color="#9c27b0"
-            subtitle="Prossimi 30 giorni"
-          />
-        </Grid>
-      </Grid>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
+        <StatCard
+          title="Macchinari Censiti"
+          value={stats?.overview?.totalMachines || 0}
+          icon={
+            <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          }
+          color="#1976d2"
+          trend={stats?.thisMonth?.machinesTrend}
+        />
+        <StatCard
+          title="Manutenzioni (Mese)"
+          value={stats?.thisMonth?.maintenances || 0}
+          icon={
+            <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+            </svg>
+          }
+          color="#ed6c02"
+          trend={stats?.thisMonth?.maintenanceTrend}
+        />
+        <StatCard
+          title="Manutenzioni in Scadenza"
+          value={stats?.overview?.upcomingScheduled || 0}
+          icon={
+            <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+          color="#9c27b0"
+          subtitle="Prossimi 30 giorni"
+        />
+      </div>
 
-      {/* Charts Row 1 */}
-      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Grid item xs={12} lg={8}>
-          <Widget title="Trend Manutenzioni (Ultimi 6 Mesi)">
-            <ResponsiveContainer width="100%" height={{ xs: 250, sm: 300 }}>
-              <LineChart data={trendsChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" style={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
-                <YAxis style={{ fontSize: 10 }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #ccc',
-                    borderRadius: 8,
-                    fontSize: '0.875rem',
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: '0.875rem' }} />
-                <Line
-                  type="monotone"
-                  dataKey="manutenzioni"
-                  stroke="#1976d2"
-                  strokeWidth={2}
-                  name="N° Manutenzioni"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </Widget>
-        </Grid>
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
+        {/* Line Chart */}
+        <div className="lg:col-span-2 card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Trend Manutenzioni (Ultimi 6 Mesi)</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={trendsChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" style={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
+              <YAxis style={{ fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 12,
+                  fontSize: '0.875rem',
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: '0.875rem' }} />
+              <Line
+                type="monotone"
+                dataKey="manutenzioni"
+                stroke="#1976d2"
+                strokeWidth={2}
+                name="N° Manutenzioni"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
 
-        <Grid item xs={12} lg={4}>
-          <Widget title="Distribuzione Macchinari">
-            <ResponsiveContainer width="100%" height={{ xs: 250, sm: 300 }}>
-              <PieChart>
-                <Pie
-                  data={machinesByCategoryData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={(entry) => `${entry.name}: ${entry.value}`}
-                  outerRadius={{ xs: 60, sm: 80 }}
-                  fill="#8884d8"
-                  dataKey="value"
-                  style={{ fontSize: '0.75rem' }}
-                >
-                  {machinesByCategoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ fontSize: '0.875rem' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </Widget>
-        </Grid>
-      </Grid>
+        {/* Pie Chart */}
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Distribuzione Macchinari</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={machinesByCategoryData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={(entry) => `${entry.name}: ${entry.value}`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                style={{ fontSize: '0.75rem' }}
+              >
+                {machinesByCategoryData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ fontSize: '0.875rem' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
       {/* Type Analysis */}
       {typeAnalysis?.byType && typeAnalysis.byType.length > 0 && (
-        <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3 } }}>
-          <Grid item xs={12}>
-            <Widget title="Analisi per Tipologia Macchinario">
-              <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                {typeAnalysis.byType.slice(0, 6).map((type: any, index: number) => (
-                  <Grid item xs={12} sm={6} md={4} key={type.type}>
-                    <Card
-                      sx={{
-                        bgcolor: 'background.default',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        height: '100%',
-                      }}
-                    >
-                      <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
-                        <Typography
-                          variant="subtitle2"
-                          fontWeight={600}
-                          gutterBottom
-                          sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-                          noWrap
-                        >
-                          {type.type}
-                        </Typography>
-                        <Chip
-                          label={type.category}
-                          size="small"
-                          sx={{
-                            mb: { xs: 1, sm: 2 },
-                            fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                          }}
-                          color="primary"
-                          variant="outlined"
-                        />
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            Macchinari
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            {type.machineCount}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            Tot. Manutenzioni
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            {type.totalMaintenances}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            Tot. Documenti
-                          </Typography>
-                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            {type.totalDocuments}
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            pt: 1,
-                            borderTop: '1px solid',
-                            borderColor: 'divider',
-                          }}
-                        >
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                            Media manut./macchina
-                          </Typography>
-                          <Typography variant="caption" fontWeight={600} color="primary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                            {type.avgMaintenancesPerMachine.toFixed(1)}
-                          </Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Widget>
-          </Grid>
-        </Grid>
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Analisi per Tipologia Macchinario</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {typeAnalysis.byType.slice(0, 6).map((type: any) => (
+              <div
+                key={type.type}
+                className="bg-gray-50 border border-gray-100 rounded-xl p-4"
+              >
+                <h4 className="font-semibold text-gray-900 truncate mb-2">{type.type}</h4>
+                <span className="badge badge-blue mb-3">{type.category}</span>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Macchinari</span>
+                    <span className="font-semibold">{type.machineCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tot. Manutenzioni</span>
+                    <span className="font-semibold">{type.totalMaintenances}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tot. Documenti</span>
+                    <span className="font-semibold">{type.totalDocuments}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-gray-200">
+                    <span className="text-gray-400 text-xs">Media manut./macchina</span>
+                    <span className="font-semibold text-blue-600 text-xs">
+                      {type.avgMaintenancesPerMachine.toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
-
-    </Box>
+    </div>
   );
 }

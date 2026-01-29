@@ -2,32 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Box,
-  Button,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Grid,
-  Switch,
-  FormControlLabel,
-  CircularProgress,
-  Autocomplete,
-} from '@mui/material';
-import { Save, ArrowBack } from '@mui/icons-material';
-import PageHeader from '@/components/PageHeader';
-import Widget from '@/components/Widget';
+import Link from 'next/link';
 import axiosInstance from '@/lib/axios';
-import { useSnackbar } from 'notistack';
+import { useToast } from '@/components/Toast';
+import Widget from '@/components/Widget';
 
 export default function NewScheduledMaintenancePage() {
   const router = useRouter();
-  const { enqueueSnackbar } = useSnackbar();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [machines, setMachines] = useState<any[]>([]);
-  const [selectedMachine, setSelectedMachine] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -46,7 +30,7 @@ export default function NewScheduledMaintenancePage() {
       const response = await axiosInstance.get('/machines');
       setMachines(response.data.data || response.data);
     } catch (error) {
-      enqueueSnackbar('Errore nel caricamento dei macchinari', { variant: 'error' });
+      toast.showError('Errore nel caricamento dei macchinari');
     }
   };
 
@@ -54,24 +38,22 @@ export default function NewScheduledMaintenancePage() {
     e.preventDefault();
 
     if (!formData.title || !formData.machineId || !formData.nextDueDate) {
-      enqueueSnackbar('Compila tutti i campi obbligatori', { variant: 'warning' });
+      toast.showWarning('Compila tutti i campi obbligatori');
       return;
     }
 
     setLoading(true);
     try {
-      // Convert date to ISO-8601 DateTime format
       const payload = {
         ...formData,
         nextDueDate: new Date(formData.nextDueDate).toISOString(),
       };
 
       await axiosInstance.post('/scheduled-maintenances', payload);
-      enqueueSnackbar('Manutenzione programmata creata con successo', { variant: 'success' });
+      toast.showSuccess('Manutenzione programmata creata con successo');
       router.push('/scheduled-maintenances');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Errore durante la creazione';
-      enqueueSnackbar(errorMessage, { variant: 'error' });
+      toast.showError(error.response?.data?.message || 'Errore durante la creazione');
     } finally {
       setLoading(false);
     }
@@ -82,130 +64,137 @@ export default function NewScheduledMaintenancePage() {
   };
 
   return (
-    <Box>
-      <PageHeader
-        title="Nuova Manutenzione Programmata"
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Manutenzioni Programmate', href: '/scheduled-maintenances' },
-          { label: 'Nuova' },
-        ]}
-        renderRight={
-          <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => router.back()}>
-            Indietro
-          </Button>
-        }
-      />
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <nav className="flex items-center gap-1 text-sm text-gray-500 mb-2">
+          <Link href="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
+          <span>/</span>
+          <Link href="/scheduled-maintenances" className="hover:text-gray-900 transition-colors">Manutenzioni Programmate</Link>
+          <span>/</span>
+          <span className="text-gray-900 font-medium">Nuova</span>
+        </nav>
+        <h1 className="text-2xl font-bold text-gray-900">Nuova Manutenzione Programmata</h1>
+      </div>
 
       <Widget>
         <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <TextField
-                required
-                fullWidth
-                label="Titolo"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Titolo */}
+            <div className="md:col-span-2">
+              <label className="label">Titolo *</label>
+              <input
+                type="text"
                 value={formData.title}
                 onChange={(e) => handleChange('title', e.target.value)}
                 placeholder="Es: Controllo periodico freni"
+                className="input"
+                required
               />
-            </Grid>
+            </div>
 
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                label="Descrizione"
+            {/* Descrizione */}
+            <div className="md:col-span-2">
+              <label className="label">Descrizione</label>
+              <textarea
                 value={formData.description}
                 onChange={(e) => handleChange('description', e.target.value)}
                 placeholder="Descrizione dettagliata della manutenzione..."
+                rows={4}
+                className="input"
               />
-            </Grid>
+            </div>
 
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                options={machines}
-                value={selectedMachine}
-                onChange={(event, newValue) => {
-                  setSelectedMachine(newValue);
-                  handleChange('machineId', newValue?.id || '');
-                }}
-                getOptionLabel={(option) =>
-                  `${option.serialNumber} - ${option.manufacturer} ${option.model}`
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Macchinario"
-                    required
-                    placeholder="Cerca macchinario..."
-                  />
-                )}
-                noOptionsText="Nessun macchinario trovato"
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Frequenza</InputLabel>
-                <Select
-                  value={formData.frequency}
-                  label="Frequenza"
-                  onChange={(e) => handleChange('frequency', e.target.value)}
-                >
-                  <MenuItem value="daily">Giornaliera</MenuItem>
-                  <MenuItem value="weekly">Settimanale</MenuItem>
-                  <MenuItem value="monthly">Mensile</MenuItem>
-                  <MenuItem value="quarterly">Trimestrale</MenuItem>
-                  <MenuItem value="biannual">Semestrale</MenuItem>
-                  <MenuItem value="annual">Annuale</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
+            {/* Macchinario */}
+            <div>
+              <label className="label">Macchinario *</label>
+              <select
+                value={formData.machineId}
+                onChange={(e) => handleChange('machineId', e.target.value)}
+                className="input"
                 required
-                fullWidth
+              >
+                <option value="">Seleziona macchinario</option>
+                {machines.map((machine) => (
+                  <option key={machine.id} value={machine.id}>
+                    {machine.serialNumber} - {machine.manufacturer} {machine.model}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Frequenza */}
+            <div>
+              <label className="label">Frequenza *</label>
+              <select
+                value={formData.frequency}
+                onChange={(e) => handleChange('frequency', e.target.value)}
+                className="input"
+                required
+              >
+                <option value="daily">Giornaliera</option>
+                <option value="weekly">Settimanale</option>
+                <option value="monthly">Mensile</option>
+                <option value="quarterly">Trimestrale</option>
+                <option value="biannual">Semestrale</option>
+                <option value="annual">Annuale</option>
+              </select>
+            </div>
+
+            {/* Prossima Scadenza */}
+            <div>
+              <label className="label">Prossima Scadenza *</label>
+              <input
                 type="date"
-                label="Prossima Scadenza"
                 value={formData.nextDueDate}
                 onChange={(e) => handleChange('nextDueDate', e.target.value)}
-                InputLabelProps={{ shrink: true }}
+                className="input"
+                required
               />
-            </Grid>
+            </div>
 
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.isActive}
-                    onChange={(e) => handleChange('isActive', e.target.checked)}
-                  />
-                }
-                label="Attiva"
-              />
-            </Grid>
+            {/* Attiva */}
+            <div className="flex items-center">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) => handleChange('isActive', e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                <span className="ml-3 text-sm font-medium text-gray-900">Attiva</span>
+              </label>
+            </div>
+          </div>
 
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                <Button variant="outlined" onClick={() => router.back()} disabled={loading}>
-                  Annulla
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  startIcon={loading ? <CircularProgress size={20} /> : <Save />}
-                  disabled={loading}
-                >
-                  Salva
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
+          {/* Actions */}
+          <div className="flex justify-end gap-3 mt-8">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              disabled={loading}
+              className="btn btn-secondary flex items-center gap-2"
+            >
+              Annulla
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              Salva
+            </button>
+          </div>
         </form>
       </Widget>
-    </Box>
+    </div>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import { Box } from '@mui/material';
 
 interface MainFooterLogoProps {
   opacity?: number;
@@ -9,14 +8,9 @@ interface MainFooterLogoProps {
 
 export default function MainFooterLogo({ opacity = 1 }: MainFooterLogoProps) {
   return (
-    <Box
-      sx={{
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        p: 3,
-        opacity: opacity,
-      }}
+    <div
+      className="absolute bottom-0 right-0 p-3"
+      style={{ opacity }}
     >
       <Image
         src="/logo.png"
@@ -24,6 +18,6 @@ export default function MainFooterLogo({ opacity = 1 }: MainFooterLogoProps) {
         width={80}
         height={80}
       />
-    </Box>
+    </div>
   );
 }

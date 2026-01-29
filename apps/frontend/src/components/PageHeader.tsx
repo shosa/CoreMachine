@@ -1,8 +1,6 @@
 'use client';
 
-import { Box, Breadcrumbs, Link as MuiLink, Typography } from '@mui/material';
 import Link from 'next/link';
-import { NavigateNext } from '@mui/icons-material';
 import { ReactNode } from 'react';
 
 interface BreadcrumbItem {
@@ -18,70 +16,34 @@ interface PageHeaderProps {
 
 export default function PageHeader({ title, breadcrumbs, renderRight }: PageHeaderProps) {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        justifyContent: 'space-between',
-        alignItems: { xs: 'stretch', sm: 'flex-start' },
-        mb: { xs: 2, sm: 3 },
-        gap: 2,
-      }}
-    >
-      <Box sx={{ minWidth: 0, flex: 1 }}>
+    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4 mb-6">
+      <div className="min-w-0 flex-1">
         {breadcrumbs && breadcrumbs.length > 0 && (
-          <Breadcrumbs
-            separator={<NavigateNext fontSize="small" />}
-            sx={{ mb: 1, flexWrap: 'wrap' }}
-          >
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             {breadcrumbs.map((crumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
-
-              if (isLast || !crumb.href) {
-                return (
-                  <Typography key={index} color="text.secondary" fontSize="0.875rem" noWrap>
-                    {crumb.label}
-                  </Typography>
-                );
-              }
-
               return (
-                <MuiLink
-                  key={index}
-                  component={Link}
-                  href={crumb.href}
-                  underline="hover"
-                  color="text.primary"
-                  fontSize="0.875rem"
-                  noWrap
-                >
-                  {crumb.label}
-                </MuiLink>
+                <span key={index} className="flex items-center gap-2">
+                  {index > 0 && <span>/</span>}
+                  {isLast || !crumb.href ? (
+                    <span className="truncate">{crumb.label}</span>
+                  ) : (
+                    <Link href={crumb.href} className="hover:text-gray-700 truncate">
+                      {crumb.label}
+                    </Link>
+                  )}
+                </span>
               );
             })}
-          </Breadcrumbs>
+          </div>
         )}
-        <Typography
-          variant="h4"
-          component="h1"
-          fontWeight={600}
-          sx={{
-            fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
-          }}
-        >
-          {title}
-        </Typography>
-      </Box>
+        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+      </div>
       {renderRight && (
-        <Box sx={{
-          display: 'flex',
-          gap: 1,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}>
+        <div className="flex gap-2 flex-wrap items-center">
           {renderRight}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }

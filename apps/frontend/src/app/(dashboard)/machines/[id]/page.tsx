@@ -1,52 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import {
-  Box,
-  Button,
-  Grid,
-  Typography,
-  Tabs,
-  Tab,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  IconButton,
-  Card,
-  CardContent,
-  Divider,
-  Chip,
-  TextField,
-  MenuItem,
-  Paper,
-  Stack,
-  Avatar,
-} from '@mui/material';
-import {
-  Edit,
-  QrCode2,
-  Close,
-  Build,
-  Category as CategoryIcon,
-  Factory,
-  CalendarMonth,
-  Receipt,
-  Description,
-  CloudUpload,
-  Download,
-  Delete,
-  Visibility,
-  Print,
-} from '@mui/icons-material';
-import PageHeader from '@/components/PageHeader';
-import Widget from '@/components/Widget';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import axiosInstance from '@/lib/axios';
-import { useSnackbar } from 'notistack';
+import { useToast } from '@/components/Toast';
 import { Machine, Maintenance, Document } from '@/types';
 import { useAuthStore } from '@/store/authStore';
-import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import QRCode from 'qrcode';
@@ -61,16 +22,70 @@ interface TabPanelProps {
 function TabPanel({ children, value, index }: TabPanelProps) {
   return (
     <div role="tabpanel" hidden={value !== index}>
-      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+      {value === index && <div className="py-6">{children}</div>}
     </div>
   );
 }
+
+/* ---------- SVG icon helpers ---------- */
+const IconEdit = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+);
+const IconQr = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h7v7H3V3zm11 0h7v7h-7V3zM3 14h7v7H3v-7zm14 3h.01M17 14h.01M14 17h.01M14 14h3v3h-3v-3zm3 3h3v3h-3v-3z" />
+  </svg>
+);
+const IconWrench = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+const IconPrint = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+  </svg>
+);
+const IconClose = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+const IconUpload = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+  </svg>
+);
+const IconDownload = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+  </svg>
+);
+const IconTrash = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+const IconEye = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+  </svg>
+);
+const IconDoc = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
 
 export default function MachineDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { hasRole } = useAuthStore();
-  const { enqueueSnackbar } = useSnackbar();
+  const toast = useToast();
   const [machine, setMachine] = useState<Machine | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
@@ -86,6 +101,10 @@ export default function MachineDetailPage() {
   const [docPreviewUrl, setDocPreviewUrl] = useState('');
   const [docPreviewName, setDocPreviewName] = useState('');
 
+  /* ---------- sorting helpers for tables ---------- */
+  const [maintSort, setMaintSort] = useState<{ field: string; dir: 'asc' | 'desc' }>({ field: 'date', dir: 'desc' });
+  const [docSort, setDocSort] = useState<{ field: string; dir: 'asc' | 'desc' }>({ field: 'uploadedAt', dir: 'desc' });
+
   useEffect(() => {
     fetchMachine();
   }, [params.id]);
@@ -96,7 +115,7 @@ export default function MachineDetailPage() {
       const response = await axiosInstance.get(`/machines/${params.id}`);
       setMachine(response.data);
     } catch (error: any) {
-      enqueueSnackbar('Errore nel caricamento del macchinario', { variant: 'error' });
+      toast.showError('Errore nel caricamento del macchinario');
     } finally {
       setLoading(false);
     }
@@ -109,13 +128,13 @@ export default function MachineDetailPage() {
       setQrCodeUrl(qrUrl);
       setQrDialogOpen(true);
     } catch (error) {
-      enqueueSnackbar('Errore nella generazione del QR code', { variant: 'error' });
+      toast.showError('Errore nella generazione del QR code');
     }
   };
 
   const handleFileUpload = async () => {
     if (!selectedFile || !documentCategory) {
-      enqueueSnackbar('Seleziona un file e una categoria', { variant: 'warning' });
+      toast.showWarning('Seleziona un file e una categoria');
       return;
     }
 
@@ -130,15 +149,13 @@ export default function MachineDetailPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      enqueueSnackbar('Documento caricato con successo', { variant: 'success' });
+      toast.showSuccess('Documento caricato con successo');
       setUploadDialogOpen(false);
       setSelectedFile(null);
       setDocumentCategory('');
-      fetchMachine(); // Refresh data
+      fetchMachine();
     } catch (error: any) {
-      enqueueSnackbar(error.response?.data?.message || 'Errore durante il caricamento', {
-        variant: 'error',
-      });
+      toast.showError(error.response?.data?.message || 'Errore durante il caricamento');
     } finally {
       setUploading(false);
     }
@@ -149,7 +166,6 @@ export default function MachineDetailPage() {
       const response = await axiosInstance.get(`/documents/${doc.id}/download`, {
         responseType: 'blob',
       });
-      // Get content type from response headers or default to application/pdf
       const contentType = response.headers['content-type'] || 'application/pdf';
       const blob = new Blob([response.data], { type: contentType });
       const blobUrl = URL.createObjectURL(blob);
@@ -157,7 +173,7 @@ export default function MachineDetailPage() {
       setDocPreviewName(doc.fileName);
       setDocPreviewOpen(true);
     } catch (error) {
-      enqueueSnackbar('Errore durante la visualizzazione', { variant: 'error' });
+      toast.showError('Errore durante la visualizzazione');
     }
   };
 
@@ -174,7 +190,7 @@ export default function MachineDetailPage() {
       link.click();
       link.remove();
     } catch (error) {
-      enqueueSnackbar('Errore durante il download', { variant: 'error' });
+      toast.showError('Errore durante il download');
     }
   };
 
@@ -183,10 +199,10 @@ export default function MachineDetailPage() {
 
     try {
       await axiosInstance.delete(`/documents/${docId}`);
-      enqueueSnackbar('Documento eliminato', { variant: 'success' });
+      toast.showSuccess('Documento eliminato');
       fetchMachine();
     } catch (error) {
-      enqueueSnackbar("Errore durante l'eliminazione", { variant: 'error' });
+      toast.showError("Errore durante l'eliminazione");
     }
   };
 
@@ -217,22 +233,8 @@ export default function MachineDetailPage() {
       const margin = 15;
       let yPos = margin;
 
-      // Helper function to add text
-      const addText = (
-        text: string,
-        fontSize: number,
-        isBold: boolean = false,
-        color: number[] = [0, 0, 0],
-      ) => {
-        pdf.setFontSize(fontSize);
-        pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
-        pdf.setTextColor(color[0], color[1], color[2]);
-        pdf.text(text, margin, yPos);
-        yPos += fontSize * 0.5;
-      };
-
       // Header - Title and Logo Area
-      pdf.setFillColor(0, 0, 0); // Black header
+      pdf.setFillColor(0, 0, 0);
       pdf.rect(0, 0, pageWidth, 40, 'F');
 
       pdf.setTextColor(255, 255, 255);
@@ -453,736 +455,602 @@ export default function MachineDetailPage() {
       setPdfPreviewOpen(true);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      enqueueSnackbar('Errore durante la generazione del PDF', { variant: 'error' });
+      toast.showError('Errore durante la generazione del PDF');
     }
   };
 
-  const maintenanceColumns: GridColDef[] = [
-    {
-      field: 'date',
-      headerName: 'Data',
-      width: 120,
-      valueFormatter: value => format(new Date(value), 'dd/MM/yyyy', { locale: it }),
-    },
-    {
-      field: 'type',
-      headerName: 'Tipo',
-      width: 150,
-      renderCell: params => {
-        const colors: Record<string, any> = {
-          ordinaria: 'success',
-          straordinaria: 'info',
-          guasto: 'error',
-          riparazione: 'warning',
-        };
-        const labels: Record<string, string> = {
-          ordinaria: 'Ordinaria',
-          straordinaria: 'Straordinaria',
-          guasto: 'Guasto',
-          riparazione: 'Riparazione',
-        };
-        return (
-          <Chip
-            label={labels[params.value] || params.value}
-            color={colors[params.value] || 'default'}
-            size="small"
-          />
-        );
-      },
-    },
-    {
-      field: 'workPerformed',
-      headerName: 'Lavoro Eseguito',
-      flex: 1,
-    },
-    {
-      field: 'cost',
-      headerName: 'Costo',
-      width: 120,
-      valueFormatter: value => (value ? `€${Number(value).toFixed(2)}` : '-'),
-    },
-    {
-      field: 'actions',
-      headerName: 'Azioni',
-      width: 80,
-      sortable: false,
-      renderCell: params => (
-        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          <IconButton
-            size="small"
-            onClick={() => router.push(`/maintenances/${params.id}`)}
-            title="Visualizza"
-            sx={{
-              bgcolor: 'black',
-              color: 'white',
-              borderRadius: '6px',
-              '&:hover': { bgcolor: 'grey.800' },
-            }}
-          >
-            <Visibility fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
-    },
+  /* ---------- sorted data ---------- */
+  const sortedMaintenances = useMemo(() => {
+    if (!machine?.maintenances) return [];
+    return [...machine.maintenances].sort((a: any, b: any) => {
+      const aVal = a[maintSort.field];
+      const bVal = b[maintSort.field];
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      const cmp = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      return maintSort.dir === 'asc' ? cmp : -cmp;
+    });
+  }, [machine?.maintenances, maintSort]);
+
+  const sortedDocuments = useMemo(() => {
+    if (!machine?.documents) return [];
+    return [...machine.documents].sort((a: any, b: any) => {
+      const aVal = a[docSort.field];
+      const bVal = b[docSort.field];
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      const cmp = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      return docSort.dir === 'asc' ? cmp : -cmp;
+    });
+  }, [machine?.documents, docSort]);
+
+  const toggleMaintSort = (field: string) => {
+    setMaintSort(prev =>
+      prev.field === field ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' },
+    );
+  };
+
+  const toggleDocSort = (field: string) => {
+    setDocSort(prev =>
+      prev.field === field ? { field, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' },
+    );
+  };
+
+  const SortIndicator = ({ field, sort }: { field: string; sort: { field: string; dir: string } }) => {
+    if (sort.field !== field) return null;
+    return <span className="ml-1 text-xs">{sort.dir === 'asc' ? '\u25B2' : '\u25BC'}</span>;
+  };
+
+  /* ---------- badge helpers ---------- */
+  const maintenanceTypeBadge = (type: string) => {
+    const map: Record<string, { label: string; cls: string }> = {
+      ordinaria: { label: 'Ordinaria', cls: 'badge badge-success' },
+      straordinaria: { label: 'Straordinaria', cls: 'badge badge-info' },
+      guasto: { label: 'Guasto', cls: 'badge badge-error' },
+      riparazione: { label: 'Riparazione', cls: 'badge badge-warning' },
+    };
+    const entry = map[type] || { label: type, cls: 'badge' };
+    return <span className={entry.cls}>{entry.label}</span>;
+  };
+
+  const docCategoryLabel = (cat: string) => {
+    const categories: Record<string, string> = {
+      manuale_uso: "Manuale d'uso",
+      certificazione_ce: 'Certificazione CE',
+      scheda_tecnica: 'Scheda Tecnica',
+      fattura_acquisto: 'Fattura Acquisto',
+      altro: 'Altro',
+    };
+    return <span className="badge">{categories[cat] || cat}</span>;
+  };
+
+  const tabs = [
+    { label: 'Dettagli Tecnici' },
+    { label: `Storico Manutenzioni (${machine?.maintenances?.length || 0})`, icon: <IconWrench /> },
+    { label: `Documenti (${machine?.documents?.length || 0})`, icon: <IconDoc /> },
   ];
 
-  const documentColumns: GridColDef[] = [
-    {
-      field: 'fileName',
-      headerName: 'Nome File',
-      flex: 1,
-    },
-    {
-      field: 'documentCategory',
-      headerName: 'Categoria',
-      width: 180,
-      renderCell: params => {
-        const categories: Record<string, string> = {
-          manuale_uso: "Manuale d'uso",
-          certificazione_ce: 'Certificazione CE',
-          scheda_tecnica: 'Scheda Tecnica',
-          fattura_acquisto: 'Fattura Acquisto',
-          altro: 'Altro',
-        };
-        return <Chip label={categories[params.value] || params.value} size="small" />;
-      },
-    },
-    {
-      field: 'fileSize',
-      headerName: 'Dimensione',
-      width: 120,
-      valueFormatter: value => {
-        const kb = value / 1024;
-        return kb > 1024 ? `${(kb / 1024).toFixed(2)} MB` : `${kb.toFixed(2)} KB`;
-      },
-    },
-    {
-      field: 'uploadedAt',
-      headerName: 'Caricato il',
-      width: 150,
-      valueFormatter: value => format(new Date(value), 'dd/MM/yyyy HH:mm', { locale: it }),
-    },
-    {
-      field: 'actions',
-      headerName: 'Azioni',
-      width: 160,
-      sortable: false,
-      renderCell: params => (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', height: '100%' }}>
-          <IconButton
-            size="small"
-            onClick={() => handlePreviewDocument(params.row)}
-            title="Anteprima"
-            sx={{
-              bgcolor: 'black',
-              color: 'white',
-              borderRadius: '6px',
-              '&:hover': { bgcolor: 'grey.800' },
-            }}
-          >
-            <Visibility fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDownloadDocument(params.row)}
-            title="Scarica"
-            sx={{
-              bgcolor: 'black',
-              color: 'white',
-              borderRadius: '6px',
-              '&:hover': { bgcolor: 'grey.800' },
-            }}
-          >
-            <Download fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => handleDeleteDocument(params.id as string)}
-            title="Elimina"
-            sx={{
-              bgcolor: 'black',
-              color: 'white',
-              borderRadius: '6px',
-              '&:hover': { bgcolor: 'grey.800' },
-            }}
-          >
-            <Delete fontSize="small" />
-          </IconButton>
-        </Box>
-      ),
-    },
-  ];
-
+  /* ---------- loading / not found ---------- */
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div className="flex justify-center items-center h-[50vh]">
+        <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+      </div>
     );
   }
 
   if (!machine) {
     return (
-      <Box>
-        <Typography>Macchinario non trovato</Typography>
-      </Box>
+      <div>
+        <p className="text-gray-600">Macchinario non trovato</p>
+      </div>
     );
   }
 
   return (
-    <Box>
-      <PageHeader
-        title={machine.description || `Macchinario ${machine.serialNumber}`}
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Macchinari', href: '/machines' },
-          { label: machine.serialNumber },
-        ]}
-      />
+    <div>
+      {/* Breadcrumbs + title */}
+      <div className="mb-6">
+        <nav className="flex items-center gap-1 text-sm text-gray-500 mb-2">
+          <Link href="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
+          <span>/</span>
+          <Link href="/machines" className="hover:text-gray-900 transition-colors">Macchinari</Link>
+          <span>/</span>
+          <span className="text-gray-900 font-medium">{machine.serialNumber}</span>
+        </nav>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {machine.description || `Macchinario ${machine.serialNumber}`}
+        </h1>
+      </div>
 
-      {/* Header Card con info principali */}
-      <Card elevation={0} sx={{ mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item xs={12} md={8}>
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="h4" fontWeight={700} gutterBottom>
-                    {machine.description}
-                  </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
-                    <Chip label={`${machine.manufacturer} ${machine.model}`} variant="outlined" />
-                    <Chip
-                      label={machine.type?.category?.name || 'N/A'}
-                      color="primary"
-                      variant="outlined"
-                    />
-                    <Chip label={machine.type?.name || 'N/A'} variant="outlined" />
-                  </Stack>
-                </Box>
+      {/* Header Card */}
+      <div className="card p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Left: info */}
+          <div className="md:col-span-2 space-y-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{machine.description}</h2>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="badge">{machine.manufacturer} {machine.model}</span>
+                <span className="badge badge-info">{machine.type?.category?.name || 'N/A'}</span>
+                <span className="badge">{machine.type?.name || 'N/A'}</span>
+              </div>
+            </div>
 
-                <Grid container spacing={2}>
-                  <Grid item xs={6} sm={3}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Matricola
-                    </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      {machine.serialNumber}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Anno
-                    </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      {machine.yearBuilt || '-'}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Data Acquisto
-                    </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      {machine.purchaseDate
-                        ? format(new Date(machine.purchaseDate), 'dd/MM/yyyy', { locale: it })
-                        : '-'}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Rivenditore
-                    </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      {machine.dealer || '-'}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Stack>
-            </Grid>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <span className="text-xs text-gray-500 block">Matricola</span>
+                <span className="text-sm font-semibold text-gray-900">{machine.serialNumber}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500 block">Anno</span>
+                <span className="text-sm font-semibold text-gray-900">{machine.yearBuilt || '-'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500 block">Data Acquisto</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {machine.purchaseDate
+                    ? format(new Date(machine.purchaseDate), 'dd/MM/yyyy', { locale: it })
+                    : '-'}
+                </span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500 block">Rivenditore</span>
+                <span className="text-sm font-semibold text-gray-900">{machine.dealer || '-'}</span>
+              </div>
+            </div>
+          </div>
 
-            <Grid item xs={12} md={4}>
-              <Stack spacing={1.5}>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  startIcon={<Build />}
-                  onClick={() => router.push(`/maintenances/new?machineId=${params.id}`)}
-                  size="large"
-                >
-                  Nuova Manutenzione
-                </Button>
-                <Button
-                  variant="contained"
-                  fullWidth
-                  startIcon={<Print />}
-                  onClick={handlePrintMachineSheet}
-                  sx={{
-                    bgcolor: 'success.main',
-                    '&:hover': { bgcolor: 'success.dark' },
-                  }}
-                >
-                  Stampa Scheda
-                </Button>
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  startIcon={<QrCode2 />}
-                  onClick={handleGenerateQR}
-                >
-                  Genera QR Code
-                </Button>
-                {hasRole(['admin', 'tecnico']) && (
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    startIcon={<Edit />}
-                    onClick={() => router.push(`/machines/${params.id}/edit`)}
-                  >
-                    Modifica Scheda
-                  </Button>
-                )}
-              </Stack>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Tabs Content */}
-      <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
-        <Tabs
-          value={tabValue}
-          onChange={(_, v) => setTabValue(v)}
-          sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}
-        >
-          <Tab label="Dettagli Tecnici" />
-          <Tab
-            label={`Storico Manutenzioni (${machine.maintenances?.length || 0})`}
-            icon={<Build fontSize="small" />}
-            iconPosition="start"
-          />
-          <Tab
-            label={`Documenti (${machine.documents?.length || 0})`}
-            icon={<Description fontSize="small" />}
-            iconPosition="start"
-          />
-        </Tabs>
-
-        <TabPanel value={tabValue} index={0}>
-          <Box sx={{ p: 3 }}>
-            <Grid container spacing={4}>
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom fontWeight={600}>
-                  Informazioni Generali
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Categoria
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.type?.category?.name || '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Tipo Macchinario
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.type?.name || '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Numero Seriale
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.serialNumber}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Produttore
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.manufacturer || '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Modello
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.model || '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Anno di Costruzione
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.yearBuilt || '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Data di Acquisto
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.purchaseDate
-                      ? format(new Date(machine.purchaseDate), 'dd MMMM yyyy', { locale: it })
-                      : '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Rivenditore
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.dealer || '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Riferimento Fattura
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.invoiceReference || '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={4}>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Locazione Documenti
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {machine.documentLocation || '-'}
-                  </Typography>
-                </Stack>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom fontWeight={600} sx={{ mt: 2 }}>
-                  Descrizione
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
-                  <Typography variant="body1">
-                    {machine.description || 'Nessuna descrizione'}
-                  </Typography>
-                </Paper>
-              </Grid>
-            </Grid>
-          </Box>
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={1}>
-          <Box sx={{ p: 2 }}>
-            {machine.maintenances && machine.maintenances.length > 0 ? (
-              <DataGrid
-                rows={machine.maintenances}
-                columns={maintenanceColumns}
-                autoHeight
-                pageSizeOptions={[10, 25, 50]}
-                initialState={{
-                  pagination: { paginationModel: { pageSize: 10 } },
-                  sorting: { sortModel: [{ field: 'date', sort: 'desc' }] },
-                }}
-                disableRowSelectionOnClick
-                sx={{
-                  border: 0,
-                  '& .MuiDataGrid-cell': { borderColor: 'divider' },
-                  '& .MuiDataGrid-columnHeaders': {
-                    bgcolor: 'background.default',
-                    borderColor: 'divider',
-                  },
-                }}
-              />
-            ) : (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <Build sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Nessuna manutenzione registrata
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<Build />}
-                  onClick={() => router.push(`/maintenances/new?machineId=${params.id}`)}
-                  sx={{ mt: 2 }}
-                >
-                  Registra Prima Manutenzione
-                </Button>
-              </Box>
+          {/* Right: action buttons */}
+          <div className="flex flex-col gap-3">
+            <button
+              className="btn btn-primary w-full flex items-center justify-center gap-2"
+              onClick={() => router.push(`/maintenances/new?machineId=${params.id}`)}
+            >
+              <IconWrench /> Nuova Manutenzione
+            </button>
+            <button
+              className="btn w-full flex items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700 transition-colors rounded-lg px-4 py-2 text-sm font-medium"
+              onClick={handlePrintMachineSheet}
+            >
+              <IconPrint /> Stampa Scheda
+            </button>
+            <button
+              className="btn btn-secondary w-full flex items-center justify-center gap-2"
+              onClick={handleGenerateQR}
+            >
+              <IconQr /> Genera QR Code
+            </button>
+            {hasRole(['admin', 'tecnico']) && (
+              <button
+                className="btn btn-secondary w-full flex items-center justify-center gap-2"
+                onClick={() => router.push(`/machines/${params.id}/edit`)}
+              >
+                <IconEdit /> Modifica Scheda
+              </button>
             )}
-          </Box>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs Card */}
+      <div className="card">
+        {/* Tab bar */}
+        <div className="border-b border-gray-200 px-4">
+          <div className="flex gap-0">
+            {tabs.map((tab, idx) => (
+              <button
+                key={idx}
+                onClick={() => setTabValue(idx)}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  tabValue === idx
+                    ? 'border-gray-900 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab: Dettagli Tecnici */}
+        <TabPanel value={tabValue} index={0}>
+          <div className="px-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Informazioni Generali</h3>
+            <hr className="mb-4 border-gray-200" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {[
+                { label: 'Categoria', value: machine.type?.category?.name || '-' },
+                { label: 'Tipo Macchinario', value: machine.type?.name || '-' },
+                { label: 'Numero Seriale', value: machine.serialNumber },
+                { label: 'Produttore', value: machine.manufacturer || '-' },
+                { label: 'Modello', value: machine.model || '-' },
+                { label: 'Anno di Costruzione', value: machine.yearBuilt || '-' },
+                {
+                  label: 'Data di Acquisto',
+                  value: machine.purchaseDate
+                    ? format(new Date(machine.purchaseDate), 'dd MMMM yyyy', { locale: it })
+                    : '-',
+                },
+                { label: 'Rivenditore', value: machine.dealer || '-' },
+                { label: 'Riferimento Fattura', value: machine.invoiceReference || '-' },
+                { label: 'Locazione Documenti', value: machine.documentLocation || '-' },
+              ].map((item, i) => (
+                <div key={i}>
+                  <span className="text-xs text-gray-500 block">{item.label}</span>
+                  <span className="text-sm font-semibold text-gray-900">{item.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="text-lg font-semibold text-gray-900 mt-8 mb-1">Descrizione</h3>
+            <hr className="mb-4 border-gray-200" />
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p className="text-sm text-gray-700">{machine.description || 'Nessuna descrizione'}</p>
+            </div>
+          </div>
         </TabPanel>
 
+        {/* Tab: Storico Manutenzioni */}
+        <TabPanel value={tabValue} index={1}>
+          <div className="px-4">
+            {machine.maintenances && machine.maintenances.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onClick={() => toggleMaintSort('date')}>
+                        Data <SortIndicator field="date" sort={maintSort} />
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onClick={() => toggleMaintSort('type')}>
+                        Tipo <SortIndicator field="type" sort={maintSort} />
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Lavoro Eseguito</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onClick={() => toggleMaintSort('cost')}>
+                        Costo <SortIndicator field="cost" sort={maintSort} />
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedMaintenances.map((m: any) => (
+                      <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">{format(new Date(m.date), 'dd/MM/yyyy', { locale: it })}</td>
+                        <td className="px-4 py-3">{maintenanceTypeBadge(m.type)}</td>
+                        <td className="px-4 py-3 text-gray-700">{m.workPerformed}</td>
+                        <td className="px-4 py-3">{m.cost ? `\u20AC${Number(m.cost).toFixed(2)}` : '-'}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+                            onClick={() => router.push(`/maintenances/${m.id}`)}
+                            title="Visualizza"
+                          >
+                            <IconEye />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <h3 className="text-lg font-medium text-gray-500 mb-2">Nessuna manutenzione registrata</h3>
+                <button
+                  className="btn btn-primary mt-4 inline-flex items-center gap-2"
+                  onClick={() => router.push(`/maintenances/new?machineId=${params.id}`)}
+                >
+                  <IconWrench /> Registra Prima Manutenzione
+                </button>
+              </div>
+            )}
+          </div>
+        </TabPanel>
+
+        {/* Tab: Documenti */}
         <TabPanel value={tabValue} index={2}>
-          <Box sx={{ p: 2 }}>
-            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                variant="contained"
-                startIcon={<CloudUpload />}
+          <div className="px-4">
+            <div className="flex justify-end mb-4">
+              <button
+                className="btn btn-primary flex items-center gap-2"
                 onClick={() => setUploadDialogOpen(true)}
               >
-                Carica Documento
-              </Button>
-            </Box>
+                <IconUpload /> Carica Documento
+              </button>
+            </div>
 
             {machine.documents && machine.documents.length > 0 ? (
-              <DataGrid
-                rows={machine.documents}
-                columns={documentColumns}
-                autoHeight
-                pageSizeOptions={[10, 25, 50]}
-                initialState={{
-                  pagination: { paginationModel: { pageSize: 10 } },
-                  sorting: { sortModel: [{ field: 'uploadedAt', sort: 'desc' }] },
-                }}
-                disableRowSelectionOnClick
-                sx={{
-                  border: 0,
-                  '& .MuiDataGrid-cell': { borderColor: 'divider' },
-                  '& .MuiDataGrid-columnHeaders': {
-                    bgcolor: 'background.default',
-                    borderColor: 'divider',
-                  },
-                }}
-              />
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onClick={() => toggleDocSort('fileName')}>
+                        Nome File <SortIndicator field="fileName" sort={docSort} />
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Categoria</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onClick={() => toggleDocSort('fileSize')}>
+                        Dimensione <SortIndicator field="fileSize" sort={docSort} />
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer select-none" onClick={() => toggleDocSort('uploadedAt')}>
+                        Caricato il <SortIndicator field="uploadedAt" sort={docSort} />
+                      </th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedDocuments.map((doc: any) => {
+                      const kb = doc.fileSize / 1024;
+                      const sizeStr = kb > 1024 ? `${(kb / 1024).toFixed(2)} MB` : `${kb.toFixed(2)} KB`;
+                      return (
+                        <tr key={doc.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-gray-900">{doc.fileName}</td>
+                          <td className="px-4 py-3">{docCategoryLabel(doc.documentCategory)}</td>
+                          <td className="px-4 py-3 text-gray-600">{sizeStr}</td>
+                          <td className="px-4 py-3 text-gray-600">{format(new Date(doc.uploadedAt), 'dd/MM/yyyy HH:mm', { locale: it })}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <button
+                                className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+                                onClick={() => handlePreviewDocument(doc)}
+                                title="Anteprima"
+                              >
+                                <IconEye />
+                              </button>
+                              <button
+                                className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+                                onClick={() => handleDownloadDocument(doc)}
+                                title="Scarica"
+                              >
+                                <IconDownload />
+                              </button>
+                              <button
+                                className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+                                onClick={() => handleDeleteDocument(doc.id as string)}
+                                title="Elimina"
+                              >
+                                <IconTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <Description sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Nessun documento caricato
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Carica manuali, certificazioni, schede tecniche e altri documenti
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<CloudUpload />}
+              <div className="text-center py-16">
+                <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="text-lg font-medium text-gray-500 mb-1">Nessun documento caricato</h3>
+                <p className="text-sm text-gray-400 mb-4">Carica manuali, certificazioni, schede tecniche e altri documenti</p>
+                <button
+                  className="btn btn-primary inline-flex items-center gap-2"
                   onClick={() => setUploadDialogOpen(true)}
                 >
-                  Carica Primo Documento
-                </Button>
-              </Box>
+                  <IconUpload /> Carica Primo Documento
+                </button>
+              </div>
             )}
-          </Box>
+          </div>
         </TabPanel>
-      </Card>
+      </div>
 
       {/* QR Code Dialog */}
-      <Dialog open={qrDialogOpen} onClose={() => setQrDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          QR Code Macchinario
-          <IconButton
-            onClick={() => setQrDialogOpen(false)}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ textAlign: 'center', p: 2 }}>
-            {qrCodeUrl && <img src={qrCodeUrl} alt="QR Code" style={{ maxWidth: '100%' }} />}
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              Scansiona questo QR code per accedere rapidamente alla registrazione manutenzione
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-              {`${window.location.origin}/m/${params.id}`}
-            </Typography>
-          </Box>
-        </DialogContent>
-      </Dialog>
+      <AnimatePresence>
+        {qrDialogOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40"
+              onClick={() => setQrDialogOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden z-10"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h2 className="text-lg font-semibold text-gray-900">QR Code Macchinario</h2>
+                <button onClick={() => setQrDialogOpen(false)} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                  <IconClose />
+                </button>
+              </div>
+              <div className="p-6 text-center">
+                {qrCodeUrl && <img src={qrCodeUrl} alt="QR Code" className="max-w-full mx-auto" />}
+                <p className="text-sm text-gray-500 mt-4">
+                  Scansiona questo QR code per accedere rapidamente alla registrazione manutenzione
+                </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  {typeof window !== 'undefined' && `${window.location.origin}/m/${params.id}`}
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Upload Document Dialog */}
-      <Dialog
-        open={uploadDialogOpen}
-        onClose={() => !uploading && setUploadDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          Carica Documento
-          <IconButton
-            onClick={() => setUploadDialogOpen(false)}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-            disabled={uploading}
-          >
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={3} sx={{ mt: 2 }}>
-            <TextField
-              select
-              label="Categoria Documento"
-              value={documentCategory}
-              onChange={e => setDocumentCategory(e.target.value)}
-              fullWidth
-              required
+      <AnimatePresence>
+        {uploadDialogOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40"
+              onClick={() => !uploading && setUploadDialogOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden z-10"
             >
-              <MenuItem value="manuale_uso">Manuale d'uso</MenuItem>
-              <MenuItem value="certificazione_ce">Certificazione CE</MenuItem>
-              <MenuItem value="scheda_tecnica">Scheda Tecnica</MenuItem>
-              <MenuItem value="fattura_acquisto">Fattura Acquisto</MenuItem>
-              <MenuItem value="altro">Altro</MenuItem>
-            </TextField>
-
-            <Box>
-              <input
-                accept="*/*"
-                style={{ display: 'none' }}
-                id="file-upload"
-                type="file"
-                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
-              />
-              <label htmlFor="file-upload">
-                <Button
-                  variant="outlined"
-                  component="span"
-                  fullWidth
-                  startIcon={<CloudUpload />}
-                  sx={{ py: 2 }}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h2 className="text-lg font-semibold text-gray-900">Carica Documento</h2>
+                <button
+                  onClick={() => setUploadDialogOpen(false)}
+                  disabled={uploading}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {selectedFile ? selectedFile.name : 'Seleziona File'}
-                </Button>
-              </label>
-              {selectedFile && (
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                  Dimensione: {(selectedFile.size / 1024).toFixed(2)} KB
-                </Typography>
-              )}
-            </Box>
+                  <IconClose />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="label">Categoria Documento *</label>
+                  <select
+                    className="input"
+                    value={documentCategory}
+                    onChange={e => setDocumentCategory(e.target.value)}
+                    required
+                  >
+                    <option value="">Seleziona categoria</option>
+                    <option value="manuale_uso">Manuale d&apos;uso</option>
+                    <option value="certificazione_ce">Certificazione CE</option>
+                    <option value="scheda_tecnica">Scheda Tecnica</option>
+                    <option value="fattura_acquisto">Fattura Acquisto</option>
+                    <option value="altro">Altro</option>
+                  </select>
+                </div>
 
-            <Button
-              variant="contained"
-              onClick={handleFileUpload}
-              disabled={!selectedFile || !documentCategory || uploading}
-              fullWidth
-              size="large"
-            >
-              {uploading ? 'Caricamento...' : 'Carica Documento'}
-            </Button>
-          </Stack>
-        </DialogContent>
-      </Dialog>
+                <div>
+                  <input
+                    accept="*/*"
+                    className="hidden"
+                    id="file-upload"
+                    type="file"
+                    onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+                  />
+                  <label htmlFor="file-upload">
+                    <span className="btn btn-secondary w-full flex items-center justify-center gap-2 cursor-pointer py-3">
+                      <IconUpload />
+                      {selectedFile ? selectedFile.name : 'Seleziona File'}
+                    </span>
+                  </label>
+                  {selectedFile && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Dimensione: {(selectedFile.size / 1024).toFixed(2)} KB
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  className="btn btn-primary w-full py-3"
+                  onClick={handleFileUpload}
+                  disabled={!selectedFile || !documentCategory || uploading}
+                >
+                  {uploading ? 'Caricamento...' : 'Carica Documento'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* PDF Preview Dialog */}
-      <Dialog
-        open={pdfPreviewOpen}
-        onClose={() => {
-          setPdfPreviewOpen(false);
-          URL.revokeObjectURL(pdfPreviewUrl);
-        }}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: {
-            height: '90vh',
-            maxHeight: '90vh',
-          },
-        }}
-      >
-        <DialogTitle>
-          Anteprima Scheda Macchinario
-          <IconButton
-            onClick={() => {
-              setPdfPreviewOpen(false);
-              URL.revokeObjectURL(pdfPreviewUrl);
-            }}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
-          {pdfPreviewUrl && (
-            <iframe
-              src={pdfPreviewUrl}
-              style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                flexGrow: 1,
+      <AnimatePresence>
+        {pdfPreviewOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40"
+              onClick={() => {
+                setPdfPreviewOpen(false);
+                URL.revokeObjectURL(pdfPreviewUrl);
               }}
-              title="Anteprima PDF"
             />
-          )}
-        </DialogContent>
-      </Dialog>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-2xl shadow-xl w-full max-w-5xl mx-4 h-[90vh] flex flex-col overflow-hidden z-10"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+                <h2 className="text-lg font-semibold text-gray-900">Anteprima Scheda Macchinario</h2>
+                <button
+                  onClick={() => {
+                    setPdfPreviewOpen(false);
+                    URL.revokeObjectURL(pdfPreviewUrl);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <IconClose />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0">
+                {pdfPreviewUrl && (
+                  <iframe
+                    src={pdfPreviewUrl}
+                    className="w-full h-full border-none"
+                    title="Anteprima PDF"
+                  />
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Document Preview Dialog */}
-      <Dialog
-        open={docPreviewOpen}
-        onClose={() => {
-          setDocPreviewOpen(false);
-          URL.revokeObjectURL(docPreviewUrl);
-        }}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: {
-            height: '90vh',
-            maxHeight: '90vh',
-          },
-        }}
-      >
-        <DialogTitle>
-          Anteprima Documento: {docPreviewName}
-          <IconButton
-            onClick={() => {
-              setDocPreviewOpen(false);
-              URL.revokeObjectURL(docPreviewUrl);
-            }}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
-          {docPreviewUrl && (
-            <iframe
-              src={docPreviewUrl}
-              style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                flexGrow: 1,
+      <AnimatePresence>
+        {docPreviewOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40"
+              onClick={() => {
+                setDocPreviewOpen(false);
+                URL.revokeObjectURL(docPreviewUrl);
               }}
-              title="Anteprima Documento"
             />
-          )}
-        </DialogContent>
-      </Dialog>
-    </Box>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-2xl shadow-xl w-full max-w-5xl mx-4 h-[90vh] flex flex-col overflow-hidden z-10"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+                <h2 className="text-lg font-semibold text-gray-900">Anteprima Documento: {docPreviewName}</h2>
+                <button
+                  onClick={() => {
+                    setDocPreviewOpen(false);
+                    URL.revokeObjectURL(docPreviewUrl);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <IconClose />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0">
+                {docPreviewUrl && (
+                  <iframe
+                    src={docPreviewUrl}
+                    className="w-full h-full border-none"
+                    title="Anteprima Documento"
+                  />
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

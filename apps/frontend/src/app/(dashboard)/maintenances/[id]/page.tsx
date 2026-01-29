@@ -2,69 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Grid,
-  Stack,
-  Typography,
-  Divider,
-} from '@mui/material';
-import {
-  Edit,
-  ArrowBack,
-  CalendarToday,
-  Person,
-  Build,
-  AttachMoney,
-  Construction,
-  Description,
-  AttachFile,
-  Download,
-} from '@mui/icons-material';
-import PageHeader from '@/components/PageHeader';
+import Link from 'next/link';
 import axiosInstance from '@/lib/axios';
-import { useSnackbar } from 'notistack';
+import { useToast } from '@/components/Toast';
 import { Maintenance } from '@/types';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
 
-const getMaintenanceTypeColor = (type: string) => {
-  switch (type) {
-    case 'ordinaria':
-      return 'success';
-    case 'straordinaria':
-      return 'info';
-    case 'guasto':
-      return 'error';
-    case 'riparazione':
-      return 'warning';
-    default:
-      return 'default';
-  }
+const typeBadgeClass: Record<string, string> = {
+  ordinaria: 'badge badge-green',
+  straordinaria: 'badge badge-blue',
+  guasto: 'badge badge-red',
+  riparazione: 'badge badge-yellow',
 };
 
-const getMaintenanceTypeLabel = (type: string) => {
-  switch (type) {
-    case 'ordinaria':
-      return 'Ordinaria';
-    case 'straordinaria':
-      return 'Straordinaria';
-    case 'guasto':
-      return 'Guasto';
-    case 'riparazione':
-      return 'Riparazione';
-    default:
-      return type;
-  }
+const typeLabels: Record<string, string> = {
+  ordinaria: 'Ordinaria',
+  straordinaria: 'Straordinaria',
+  guasto: 'Guasto',
+  riparazione: 'Riparazione',
 };
 
 export default function MaintenanceDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { enqueueSnackbar } = useSnackbar();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [maintenance, setMaintenance] = useState<Maintenance | null>(null);
 
@@ -78,7 +40,7 @@ export default function MaintenanceDetailPage() {
       const response = await axiosInstance.get(`/maintenances/${params.id}`);
       setMaintenance(response.data);
     } catch (error: any) {
-      enqueueSnackbar('Errore nel caricamento della manutenzione', { variant: 'error' });
+      toast.showError('Errore nel caricamento della manutenzione');
       router.push('/maintenances');
     } finally {
       setLoading(false);
@@ -92,19 +54,18 @@ export default function MaintenanceDetailPage() {
 
     try {
       await axiosInstance.delete(`/maintenances/${params.id}/documents/${documentId}`);
-      enqueueSnackbar('Documento rimosso con successo', { variant: 'success' });
-      // Refresh maintenance data
+      toast.showSuccess('Documento rimosso con successo');
       fetchMaintenance();
     } catch (error: any) {
-      enqueueSnackbar('Errore nella rimozione del documento', { variant: 'error' });
+      toast.showError('Errore nella rimozione del documento');
     }
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div className="flex justify-center items-center h-[50vh]">
+        <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+      </div>
     );
   }
 
@@ -113,273 +74,225 @@ export default function MaintenanceDetailPage() {
   }
 
   return (
-    <Box>
-      <PageHeader
-        title="Dettaglio Manutenzione"
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Manutenzioni', href: '/maintenances' },
-          { label: `Manutenzione #${maintenance.id.slice(0, 8)}` },
-        ]}
-      />
+    <div>
+      {/* Breadcrumbs + title */}
+      <div className="mb-6">
+        <nav className="flex items-center gap-1 text-sm text-gray-500 mb-2">
+          <Link href="/dashboard" className="hover:text-gray-900 transition-colors">Dashboard</Link>
+          <span>/</span>
+          <Link href="/maintenances" className="hover:text-gray-900 transition-colors">Manutenzioni</Link>
+          <span>/</span>
+          <span className="text-gray-900 font-medium">#{maintenance.id.slice(0, 8)}</span>
+        </nav>
+        <h1 className="text-2xl font-bold text-gray-900">Dettaglio Manutenzione</h1>
+      </div>
 
       {/* Header Card */}
-      <Card elevation={0} sx={{ mb: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2}>
-            <Box>
-              <Stack direction="row" spacing={2} alignItems="center" mb={1}>
-                <Typography variant="h4" fontWeight={700}>
-                  Manutenzione #{maintenance.id.slice(0, 8)}
-                </Typography>
-                <Chip
-                  label={getMaintenanceTypeLabel(maintenance.type)}
-                  color={getMaintenanceTypeColor(maintenance.type) as any}
-                  size="medium"
-                />
-              </Stack>
-              <Typography variant="body1" color="text.secondary">
-                Eseguita il {new Date(maintenance.date).toLocaleDateString('it-IT')}
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={2}>
-              <Button
-                variant="outlined"
-                startIcon={<ArrowBack />}
-                onClick={() => router.back()}
-              >
-                Indietro
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={<Edit />}
-                onClick={() => router.push(`/maintenances/${params.id}/edit`)}
-              >
-                Modifica
-              </Button>
-            </Stack>
-          </Stack>
+      <div className="card p-6 mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Manutenzione #{maintenance.id.slice(0, 8)}
+              </h2>
+              <span className={typeBadgeClass[maintenance.type] || 'badge'}>
+                {typeLabels[maintenance.type] || maintenance.type}
+              </span>
+            </div>
+            <p className="text-gray-500">
+              Eseguita il {format(new Date(maintenance.date), 'dd MMMM yyyy', { locale: it })}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="btn btn-secondary flex items-center gap-2"
+              onClick={() => router.back()}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Indietro
+            </button>
+            <button
+              className="btn btn-primary flex items-center gap-2"
+              onClick={() => router.push(`/maintenances/${params.id}/edit`)}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Modifica
+            </button>
+          </div>
+        </div>
 
-          <Divider sx={{ my: 3 }} />
+        <hr className="border-gray-200 my-6" />
 
-          {/* Quick Info Grid */}
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Build sx={{ color: 'primary.main' }} />
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Macchinario
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {maintenance.machine?.serialNumber} - {maintenance.machine?.description}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Person sx={{ color: 'primary.main' }} />
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Operatore
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {maintenance.operator?.firstName} {maintenance.operator?.lastName}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <CalendarToday sx={{ color: 'primary.main' }} />
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Data Intervento
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {new Date(maintenance.date).toLocaleDateString('it-IT', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Grid>
-            {maintenance.cost && (
-              <Grid item xs={12} md={6}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <AttachMoney sx={{ color: 'primary.main' }} />
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Costo
-                    </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      € {Number(maintenance.cost).toFixed(2)}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Grid>
-            )}
-          </Grid>
-        </CardContent>
-      </Card>
+        {/* Quick Info Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 block">Macchinario</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {maintenance.machine?.serialNumber} - {maintenance.machine?.description}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 block">Operatore</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {maintenance.operator?.firstName} {maintenance.operator?.lastName}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 block">Data Intervento</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {format(new Date(maintenance.date), 'dd MMMM yyyy', { locale: it })}
+              </span>
+            </div>
+          </div>
+
+          {maintenance.cost && (
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0M8 10.5h4m-4 3h4m9-1.5a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500 block">Costo</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  &euro;{Number(maintenance.cost).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Details Grid */}
-      <Grid container spacing={3}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Work Performed */}
-        <Grid item xs={12} md={6}>
-          <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, height: '100%' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                <Construction color="primary" />
-                <Typography variant="h6" fontWeight={600}>
-                  Lavori Eseguiti
-                </Typography>
-              </Stack>
-              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                {maintenance.workPerformed}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        <div className="card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <h3 className="text-lg font-semibold text-gray-900">Lavori Eseguiti</h3>
+          </div>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{maintenance.workPerformed}</p>
+        </div>
 
         {/* Problem Description */}
         {maintenance.problemDescription && (
-          <Grid item xs={12} md={6}>
-            <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, height: '100%' }}>
-              <CardContent sx={{ p: 3 }}>
-                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                  <Description color="primary" />
-                  <Typography variant="h6" fontWeight={600}>
-                    Descrizione Problema
-                  </Typography>
-                </Stack>
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {maintenance.problemDescription}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900">Descrizione Problema</h3>
+            </div>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{maintenance.problemDescription}</p>
+          </div>
         )}
 
         {/* Spare Parts */}
         {maintenance.spareParts && (
-          <Grid item xs={12}>
-            <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight={600} mb={2}>
-                  Ricambi Utilizzati
-                </Typography>
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {maintenance.spareParts}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+          <div className="card p-6 md:col-span-2">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Ricambi Utilizzati</h3>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{maintenance.spareParts}</p>
+          </div>
         )}
 
         {/* Documents Section */}
         {maintenance.documents && maintenance.documents.length > 0 && (
-          <Grid item xs={12}>
-            <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
-              <CardContent sx={{ p: 3 }}>
-                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                  <AttachFile color="primary" />
-                  <Typography variant="h6" fontWeight={600}>
-                    Documenti Allegati ({maintenance.documents.length})
-                  </Typography>
-                </Stack>
-                <Stack spacing={1}>
-                  {maintenance.documents.map((doc) => (
-                    <Stack
-                      key={doc.id}
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                      sx={{
-                        p: 2,
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        bgcolor: 'grey.50',
-                      }}
+          <div className="card p-6 md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Documenti Allegati ({maintenance.documents.length})
+              </h3>
+            </div>
+            <div className="space-y-2">
+              {maintenance.documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900">{doc.fileName}</p>
+                    <p className="text-xs text-gray-500">
+                      {format(new Date(doc.uploadedAt), 'dd/MM/yyyy', { locale: it })} &bull;{' '}
+                      {(doc.fileSize / 1024 / 1024).toFixed(2)} MB &bull;{' '}
+                      Caricato da {doc.uploadedBy?.firstName} {doc.uploadedBy?.lastName}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="btn btn-secondary text-sm"
+                      onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
                     >
-                      <Box>
-                        <Typography variant="body1" fontWeight={500}>
-                          {doc.fileName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(doc.uploadedAt).toLocaleDateString('it-IT')} •
-                          {(doc.fileSize / 1024 / 1024).toFixed(2)} MB •
-                          Caricato da {doc.uploadedBy?.firstName} {doc.uploadedBy?.lastName}
-                        </Typography>
-                      </Box>
-                      <Stack direction="row" spacing={1}>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<Download />}
-                          onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
-                        >
-                          Scarica
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          color="error"
-                          onClick={() => handleRemoveDocument(doc.id)}
-                        >
-                          Rimuovi
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  ))}
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
+                      Scarica
+                    </button>
+                    <button
+                      className="btn text-sm bg-red-50 text-red-600 hover:bg-red-100"
+                      onClick={() => handleRemoveDocument(doc.id)}
+                    >
+                      Rimuovi
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Machine Link Card */}
-        <Grid item xs={12}>
-          <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Macchinario Associato
-                  </Typography>
-                  <Typography variant="h6" fontWeight={600}>
-                    {maintenance.machine?.description}
-                  </Typography>
-                  <Stack direction="row" spacing={1} mt={1}>
-                    <Chip
-                      label={`Matr.: ${maintenance.machine?.serialNumber}`}
-                      size="small"
-                      variant="outlined"
-                    />
-                    {maintenance.machine?.manufacturer && (
-                      <Chip
-                        label={`${maintenance.machine.manufacturer} ${maintenance.machine.model || ''}`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    )}
-                  </Stack>
-                </Box>
-                <Button
-                  variant="outlined"
-                  onClick={() => router.push(`/machines/${maintenance.machineId}`)}
-                >
-                  Visualizza Macchinario
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    </Box>
+        <div className="card p-6 md:col-span-2">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <span className="text-xs text-gray-500 block">Macchinario Associato</span>
+              <h3 className="text-lg font-semibold text-gray-900">{maintenance.machine?.description}</h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="badge">Matr.: {maintenance.machine?.serialNumber}</span>
+                {maintenance.machine?.manufacturer && (
+                  <span className="badge">
+                    {maintenance.machine.manufacturer} {maintenance.machine.model || ''}
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              className="btn btn-secondary"
+              onClick={() => router.push(`/machines/${maintenance.machineId}`)}
+            >
+              Visualizza Macchinario
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

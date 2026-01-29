@@ -1,10 +1,9 @@
 'use client';
 
-import { Card, CardContent, CardActions, Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
-import { Visibility, Edit, Delete, Build } from '@mui/icons-material';
 import { Maintenance } from '@/types';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { motion } from 'framer-motion';
 
 interface MaintenanceCardProps {
   maintenance: Maintenance;
@@ -13,156 +12,121 @@ interface MaintenanceCardProps {
   onDelete?: (id: string) => void;
 }
 
+const typeBadgeClass: Record<string, string> = {
+  ordinaria: 'badge badge-green',
+  straordinaria: 'badge badge-blue',
+  guasto: 'badge badge-red',
+  riparazione: 'badge badge-yellow',
+};
+
+const typeLabels: Record<string, string> = {
+  ordinaria: 'Ordinaria',
+  straordinaria: 'Straordinaria',
+  guasto: 'Guasto',
+  riparazione: 'Riparazione',
+};
+
 export default function MaintenanceCard({ maintenance, onView, onEdit, onDelete }: MaintenanceCardProps) {
-  const typeColors: Record<string, 'primary' | 'warning' | 'error' | 'success'> = {
-    ordinaria: 'success',
-    straordinaria: 'primary',
-    guasto: 'error',
-    riparazione: 'warning',
-  };
-
-  const typeLabels: Record<string, string> = {
-    ordinaria: 'Ordinaria',
-    straordinaria: 'Straordinaria',
-    guasto: 'Guasto',
-    riparazione: 'Riparazione',
-  };
-
   return (
-    <Card
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.2s',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: 4,
-        },
-      }}
+    <motion.div
+      className="card flex flex-col h-full hover:shadow-md transition-shadow duration-200"
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
     >
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <Build sx={{ color: 'text.secondary', fontSize: 20 }} />
-            <Typography variant="caption" color="text.secondary">
+      <div className="flex-1 p-5">
+        {/* Header */}
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-xs text-gray-500">
               {format(new Date(maintenance.date), 'dd MMM yyyy', { locale: it })}
-            </Typography>
-          </Box>
-          <Chip
-            label={typeLabels[maintenance.type] || maintenance.type}
-            color={typeColors[maintenance.type] || 'default'}
-            size="small"
-            sx={{ fontWeight: 500 }}
-          />
-        </Box>
+            </span>
+          </div>
+          <span className={typeBadgeClass[maintenance.type] || 'badge badge-gray'}>
+            {typeLabels[maintenance.type] || maintenance.type}
+          </span>
+        </div>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          <Box>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Macchinario
-            </Typography>
-            <Typography variant="body2" fontWeight={600}>
-              {maintenance.machine ?
-                `${maintenance.machine.model || maintenance.machine.manufacturer || ''} (${maintenance.machine.serialNumber})`.trim()
+        {/* Details */}
+        <div className="flex flex-col gap-3">
+          <div>
+            <span className="text-xs text-gray-500 block">Macchinario</span>
+            <span className="text-sm font-semibold text-gray-900">
+              {maintenance.machine
+                ? `${maintenance.machine.model || maintenance.machine.manufacturer || ''} (${maintenance.machine.serialNumber})`.trim()
                 : '-'}
-            </Typography>
-          </Box>
+            </span>
+          </div>
 
-          <Box>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Operatore
-            </Typography>
-            <Typography variant="body2" fontWeight={500}>
+          <div>
+            <span className="text-xs text-gray-500 block">Operatore</span>
+            <span className="text-sm font-medium text-gray-900">
               {maintenance.operator
                 ? `${maintenance.operator.firstName} ${maintenance.operator.lastName}`
                 : '-'}
-            </Typography>
-          </Box>
+            </span>
+          </div>
 
-          <Box>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Lavoro Eseguito
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-              }}
-            >
+          <div>
+            <span className="text-xs text-gray-500 block">Lavoro Eseguito</span>
+            <p className="text-sm text-gray-700 line-clamp-2">
               {maintenance.workPerformed || '-'}
-            </Typography>
-          </Box>
+            </p>
+          </div>
 
           {maintenance.cost && (
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Costo
-              </Typography>
-              <Typography variant="body2" fontWeight={600} color="primary.main">
-                €{Number(maintenance.cost).toFixed(2)}
-              </Typography>
-            </Box>
+            <div>
+              <span className="text-xs text-gray-500 block">Costo</span>
+              <span className="text-sm font-semibold text-gray-900">
+                &euro;{Number(maintenance.cost).toFixed(2)}
+              </span>
+            </div>
           )}
-        </Box>
-      </CardContent>
+        </div>
+      </div>
 
-      <CardActions sx={{ justifyContent: 'flex-end', px: 2, pb: 2 }}>
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-1.5 px-4 pb-4">
         {onView && (
-          <Tooltip title="Visualizza">
-            <IconButton
-              size="small"
-              onClick={() => onView(maintenance.id)}
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Visibility fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <button
+            onClick={() => onView(maintenance.id)}
+            title="Visualizza"
+            className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
         )}
 
         {onEdit && (
-          <Tooltip title="Modifica">
-            <IconButton
-              size="small"
-              onClick={() => onEdit(maintenance.id)}
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Edit fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <button
+            onClick={() => onEdit(maintenance.id)}
+            title="Modifica"
+            className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
         )}
 
         {onDelete && (
-          <Tooltip title="Elimina">
-            <IconButton
-              size="small"
-              onClick={() => onDelete(maintenance.id)}
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Delete fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <button
+            onClick={() => onDelete(maintenance.id)}
+            title="Elimina"
+            className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
         )}
-      </CardActions>
-    </Card>
+      </div>
+    </motion.div>
   );
 }

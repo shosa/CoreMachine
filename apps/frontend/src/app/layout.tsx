@@ -1,13 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { Metadata } from 'next';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { SnackbarProvider } from 'notistack';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createAppTheme } from '@/theme';
+import { ToastProvider } from '@/components/Toast';
 import './globals.css';
 
 export default function RootLayout({
@@ -15,7 +10,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const theme = createAppTheme('light');
   const [queryClient] = useState(() => new QueryClient());
 
   return (
@@ -25,23 +19,11 @@ export default function RootLayout({
         <title>CoreMachine</title>
       </head>
       <body>
-        <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <SnackbarProvider
-              maxSnack={3}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              autoHideDuration={3000}
-            >
-              <QueryClientProvider client={queryClient}>
-                {children}
-              </QueryClientProvider>
-            </SnackbarProvider>
-          </ThemeProvider>
-        </AppRouterCacheProvider>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </QueryClientProvider>
       </body>
     </html>
   );

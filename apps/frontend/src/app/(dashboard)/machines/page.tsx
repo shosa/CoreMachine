@@ -2,43 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Box,
-  Button,
-  IconButton,
-  TextField,
-  CircularProgress,
-  ToggleButtonGroup,
-  ToggleButton,
-  Grid,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-  Stack,
-  Menu,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
-import {
-  Add,
-  Visibility,
-  Edit,
-  Delete,
-  Search,
-  ViewModule,
-  ViewList,
-  FilterList,
-  FileDownload,
-  GetApp,
-} from '@mui/icons-material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import PageHeader from '@/components/PageHeader';
-import MachineCard from '@/components/MachineCard';
-import Widget from '@/components/Widget';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import axiosInstance from '@/lib/axios';
-import { useSnackbar } from 'notistack';
+import { useToast } from '@/components/Toast';
 import { Machine } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 
@@ -55,13 +22,14 @@ interface Filters {
 export default function MachinesPage() {
   const router = useRouter();
   const { hasRole } = useAuthStore();
-  const { enqueueSnackbar } = useSnackbar();
+  const { showSuccess, showError } = useToast();
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [sortBy, setSortBy] = useState<SortOption>('serialNumber');
-  const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [filters, setFilters] = useState<Filters>({
     category: '',
@@ -84,7 +52,7 @@ export default function MachinesPage() {
       const response = await axiosInstance.get('/machines');
       setMachines(response.data.data || response.data);
     } catch (error: any) {
-      enqueueSnackbar('Errore nel caricamento dei macchinari', { variant: 'error' });
+      showError('Errore nel caricamento dei macchinari');
     } finally {
       setLoading(false);
     }
@@ -114,29 +82,20 @@ export default function MachinesPage() {
 
     try {
       await axiosInstance.delete(`/machines/${id}`);
-      enqueueSnackbar('Macchinario eliminato con successo', { variant: 'success' });
+      showSuccess('Macchinario eliminato con successo');
       fetchMachines();
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || "Errore durante l'eliminazione";
-
-      if (error.response?.status === 400 || errorMessage.includes('vincoli') || errorMessage.includes('foreign key')) {
-        enqueueSnackbar('Impossibile eliminare: il macchinario ha documenti o manutenzioni associate', {
-          variant: 'error',
-          autoHideDuration: 5000,
-        });
+      if (error.response?.status === 400 || errorMessage.includes('vincoli')) {
+        showError('Impossibile eliminare: il macchinario ha documenti o manutenzioni associate');
       } else {
-        enqueueSnackbar(errorMessage, { variant: 'error' });
+        showError(errorMessage);
       }
     }
   };
 
   const handleClearFilters = () => {
-    setFilters({
-      category: '',
-      type: '',
-      manufacturer: '',
-      yearBuilt: '',
-    });
+    setFilters({ category: '', type: '', manufacturer: '', yearBuilt: '' });
     setSearchQuery('');
   };
 
@@ -150,7 +109,6 @@ export default function MachinesPage() {
       m.model,
       m.yearBuilt || '',
     ]);
-
     const csv = [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -159,8 +117,8 @@ export default function MachinesPage() {
     a.download = `macchinari-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    setExportMenuAnchor(null);
-    enqueueSnackbar('Export CSV completato', { variant: 'success' });
+    setExportMenuOpen(false);
+    showSuccess('Export CSV completato');
   };
 
   const handleExportJSON = () => {
@@ -172,11 +130,10 @@ export default function MachinesPage() {
     a.download = `macchinari-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setExportMenuAnchor(null);
-    enqueueSnackbar('Export JSON completato', { variant: 'success' });
+    setExportMenuOpen(false);
+    showSuccess('Export JSON completato');
   };
 
-  // Filtraggio
   let filteredMachines = machines.filter((machine) => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch =
@@ -194,7 +151,6 @@ export default function MachinesPage() {
     return matchesSearch && matchesCategory && matchesType && matchesManufacturer && matchesYear;
   });
 
-  // Ordinamento
   const filteredAndSortedMachines = [...filteredMachines].sort((a, b) => {
     switch (sortBy) {
       case 'serialNumber':
@@ -214,365 +170,311 @@ export default function MachinesPage() {
     }
   });
 
-  // Opzioni uniche per i filtri
   const uniqueManufacturers = Array.from(new Set(machines.map((m) => m.manufacturer).filter(Boolean)));
   const uniqueYears = Array.from(new Set(machines.map((m) => m.yearBuilt).filter(Boolean))).sort((a, b) => b - a);
-
   const activeFiltersCount = Object.values(filters).filter(Boolean).length;
 
-  const columns: GridColDef[] = [
-    {
-      field: 'serialNumber',
-      headerName: 'Matricola',
-      flex: 1,
-      minWidth: 150,
-    },
-    {
-      field: 'type',
-      headerName: 'Tipo',
-      flex: 1,
-      minWidth: 150,
-      valueGetter: (value, row) => row.type?.name || '-',
-    },
-    {
-      field: 'category',
-      headerName: 'Categoria',
-      flex: 1,
-      minWidth: 150,
-      valueGetter: (value, row) => row.type?.category?.name || '-',
-    },
-    {
-      field: 'manufacturer',
-      headerName: 'Produttore',
-      flex: 1,
-      minWidth: 150,
-    },
-    {
-      field: 'model',
-      headerName: 'Modello',
-      flex: 1,
-      minWidth: 150,
-    },
-    {
-      field: 'yearBuilt',
-      headerName: 'Anno',
-      width: 100,
-    },
-    
-    {
-      field: 'actions',
-      headerName: 'Azioni',
-      width: 150,
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', height: '100%' }}>
-          <IconButton
-            size="small"
-            onClick={() => router.push(`/machines/${params.row.id}`)}
-            title="Visualizza"
-            sx={{
-              bgcolor: 'black',
-              color: 'white',
-              borderRadius: '6px',
-              '&:hover': { bgcolor: 'grey.800' },
-            }}
-          >
-            <Visibility fontSize="small" />
-          </IconButton>
-          {hasRole(['admin', 'tecnico']) && (
-            <IconButton
-              size="small"
-              onClick={() => router.push(`/machines/${params.row.id}/edit`)}
-              title="Modifica"
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Edit fontSize="small" />
-            </IconButton>
-          )}
-          {hasRole('admin') && (
-            <IconButton
-              size="small"
-              onClick={() => handleDelete(params.row.id)}
-              title="Elimina"
-              sx={{
-                bgcolor: 'black',
-                color: 'white',
-                borderRadius: '6px',
-                '&:hover': { bgcolor: 'grey.800' },
-              }}
-            >
-              <Delete fontSize="small" />
-            </IconButton>
-          )}
-        </Box>
-      ),
-    },
-  ];
-
   return (
-    <Box>
-      <PageHeader
-        title="Macchinari"
-        breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Macchinari' }]}
-        renderRight={
-          <Stack direction="row" spacing={1} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-            <Button
-              variant="outlined"
-              startIcon={<FileDownload sx={{ display: { xs: 'none', sm: 'block' } }} />}
-              onClick={(e) => setExportMenuAnchor(e.currentTarget)}
-              size="small"
-              sx={{ flex: { xs: 1, sm: 'initial' } }}
+    <div>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Macchinari</h1>
+          <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+            <Link href="/dashboard" className="hover:text-gray-700">Dashboard</Link>
+            <span>/</span>
+            <span>Macchinari</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="relative">
+            <button
+              onClick={() => setExportMenuOpen(!exportMenuOpen)}
+              className="btn btn-secondary"
             >
-              Esporta
-            </Button>
-            {hasRole('admin') && (
-              <Button
-                variant="contained"
-                startIcon={<Add sx={{ display: { xs: 'none', sm: 'block' } }} />}
-                onClick={() => router.push('/machines/new')}
-                size="small"
-                sx={{ flex: { xs: 1, sm: 'initial' } }}
-              >
-                Aggiungi
-              </Button>
-            )}
-          </Stack>
-        }
-      />
-
-      <Menu
-        anchorEl={exportMenuAnchor}
-        open={Boolean(exportMenuAnchor)}
-        onClose={() => setExportMenuAnchor(null)}
-      >
-        <MenuItem onClick={handleExportCSV}>
-          <ListItemIcon>
-            <GetApp fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Esporta CSV</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleExportJSON}>
-          <ListItemIcon>
-            <GetApp fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Esporta JSON</ListItemText>
-        </MenuItem>
-      </Menu>
-
-      <Widget>
-        {/* Toolbar: Search + View Toggle + Sort */}
-        <Box sx={{
-          mb: 3,
-          display: 'flex',
-          gap: 2,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}>
-          <TextField
-            placeholder="Cerca per matricola, produttore, modello o tipo..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            size="small"
-            InputProps={{
-              startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
-            }}
-            sx={{
-              flex: 1,
-              minWidth: { xs: '100%', sm: 250 },
-            }}
-          />
-
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(e, newMode) => newMode && setViewMode(newMode)}
-            size="small"
-            sx={{ display: { xs: 'none', sm: 'flex' } }}
-          >
-            <ToggleButton value="table" aria-label="vista tabella">
-              <ViewList />
-            </ToggleButton>
-            <ToggleButton value="grid" aria-label="vista griglia">
-              <ViewModule />
-            </ToggleButton>
-          </ToggleButtonGroup>
-
-          <FormControl
-            size="small"
-            sx={{
-              minWidth: { xs: '100%', sm: 180 },
-            }}
-          >
-            <InputLabel>Ordina per</InputLabel>
-            <Select value={sortBy} label="Ordina per" onChange={(e) => setSortBy(e.target.value as SortOption)}>
-              <MenuItem value="serialNumber">Matricola</MenuItem>
-              <MenuItem value="manufacturer">Produttore</MenuItem>
-              <MenuItem value="model">Modello</MenuItem>
-              <MenuItem value="yearBuilt">Anno</MenuItem>
-              <MenuItem value="newest">Più recenti</MenuItem>
-              <MenuItem value="oldest">Più vecchi</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-
-        {/* Filtri avanzati */}
-        <Box sx={{ mb: 3, p: { xs: 1.5, sm: 2 }, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Box sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            justifyContent: 'space-between',
-            mb: 2,
-            gap: 1,
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-              <FilterList fontSize="small" />
-              <Box sx={{ fontWeight: 600, fontSize: { xs: '0.875rem', sm: '1rem' } }}>Filtri</Box>
-              {activeFiltersCount > 0 && (
-                <Chip label={`${activeFiltersCount} attivi`} size="small" color="primary" />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span className="hidden sm:inline">Esporta</span>
+            </button>
+            <AnimatePresence>
+              {exportMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                >
+                  <button onClick={handleExportCSV} className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Esporta CSV
+                  </button>
+                  <button onClick={handleExportJSON} className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Esporta JSON
+                  </button>
+                </motion.div>
               )}
-            </Box>
-            {activeFiltersCount > 0 && (
-              <Button size="small" onClick={handleClearFilters}>
-                Pulisci
-              </Button>
-            )}
-          </Box>
+            </AnimatePresence>
+          </div>
+          {hasRole('admin') && (
+            <Link href="/machines/new" className="btn btn-primary">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">Aggiungi</span>
+            </Link>
+          )}
+        </div>
+      </div>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Categoria</InputLabel>
-                <Select
-                  value={filters.category}
-                  label="Categoria"
-                  onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                >
-                  <MenuItem value="">Tutte</MenuItem>
-                  {categories.map((cat) => (
-                    <MenuItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small" disabled={!filters.category}>
-                <InputLabel>Tipo</InputLabel>
-                <Select
-                  value={filters.type}
-                  label="Tipo"
-                  onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                >
-                  <MenuItem value="">Tutti</MenuItem>
-                  {types.map((type) => (
-                    <MenuItem key={type.id} value={type.id}>
-                      {type.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Produttore</InputLabel>
-                <Select
-                  value={filters.manufacturer}
-                  label="Produttore"
-                  onChange={(e) => setFilters({ ...filters, manufacturer: e.target.value })}
-                >
-                  <MenuItem value="">Tutti</MenuItem>
-                  {uniqueManufacturers.map((mfr) => (
-                    <MenuItem key={mfr} value={mfr}>
-                      {mfr}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Anno</InputLabel>
-                <Select
-                  value={filters.yearBuilt}
-                  label="Anno"
-                  onChange={(e) => setFilters({ ...filters, yearBuilt: e.target.value })}
-                >
-                  <MenuItem value="">Tutti</MenuItem>
-                  {uniqueYears.map((year) => (
-                    <MenuItem key={year} value={year.toString()}>
-                      {year}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </Box>
-
-        {/* Contenuto */}
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : viewMode === 'table' ? (
-          <Box sx={{ width: '100%', overflowX: 'auto' }}>
-            <DataGrid
-              rows={filteredAndSortedMachines}
-              columns={columns}
-              autoHeight
-              pageSizeOptions={[10, 25, 50, 100]}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 25 } },
-              }}
-              disableRowSelectionOnClick
-              sx={{
-                border: 0,
-                minWidth: { xs: 600, sm: '100%' },
-                '& .MuiDataGrid-cell': {
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                },
-                '& .MuiDataGrid-columnHeaders': {
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                },
-                '& .MuiDataGrid-cell': {
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                },
-              }}
+      <div className="card p-6">
+        {/* Toolbar */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex-1 min-w-[200px] relative">
+            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Cerca per matricola, produttore, modello o tipo..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input pl-10"
             />
-          </Box>
+          </div>
+
+          <div className="hidden sm:flex border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-2.5 ${viewMode === 'table' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2.5 ${viewMode === 'grid' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+          </div>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="input w-auto min-w-[150px]"
+          >
+            <option value="serialNumber">Matricola</option>
+            <option value="manufacturer">Produttore</option>
+            <option value="model">Modello</option>
+            <option value="yearBuilt">Anno</option>
+            <option value="newest">Più recenti</option>
+            <option value="oldest">Più vecchi</option>
+          </select>
+
+          <button
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            className={`btn ${filtersOpen || activeFiltersCount > 0 ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            {activeFiltersCount > 0 && (
+              <span className="bg-white text-gray-900 text-xs rounded-full px-1.5">{activeFiltersCount}</span>
+            )}
+          </button>
+        </div>
+
+        {/* Filters Panel */}
+        <AnimatePresence>
+          {filtersOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-semibold text-gray-900">Filtri Avanzati</span>
+                  {activeFiltersCount > 0 && (
+                    <button onClick={handleClearFilters} className="text-sm text-gray-500 hover:text-gray-700">
+                      Pulisci filtri
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <select
+                    value={filters.category}
+                    onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">Tutte le categorie</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filters.type}
+                    onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+                    className="input"
+                    disabled={!filters.category}
+                  >
+                    <option value="">Tutti i tipi</option>
+                    {types.map((type) => (
+                      <option key={type.id} value={type.id}>{type.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filters.manufacturer}
+                    onChange={(e) => setFilters({ ...filters, manufacturer: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">Tutti i produttori</option>
+                    {uniqueManufacturers.map((mfr) => (
+                      <option key={mfr} value={mfr}>{mfr}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filters.yearBuilt}
+                    onChange={(e) => setFilters({ ...filters, yearBuilt: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">Tutti gli anni</option>
+                    {uniqueYears.map((year) => (
+                      <option key={year} value={year.toString()}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Content */}
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+          </div>
+        ) : viewMode === 'table' ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Matricola</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Tipo</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 hidden md:table-cell">Categoria</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 hidden lg:table-cell">Produttore</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 hidden lg:table-cell">Modello</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 hidden xl:table-cell">Anno</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAndSortedMachines.map((machine) => (
+                  <tr key={machine.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4">
+                      <span className="font-medium text-gray-900">{machine.serialNumber}</span>
+                    </td>
+                    <td className="py-3 px-4 text-gray-600">{machine.type?.name || '-'}</td>
+                    <td className="py-3 px-4 text-gray-600 hidden md:table-cell">{machine.type?.category?.name || '-'}</td>
+                    <td className="py-3 px-4 text-gray-600 hidden lg:table-cell">{machine.manufacturer}</td>
+                    <td className="py-3 px-4 text-gray-600 hidden lg:table-cell">{machine.model}</td>
+                    <td className="py-3 px-4 text-gray-600 hidden xl:table-cell">{machine.yearBuilt || '-'}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => router.push(`/machines/${machine.id}`)}
+                          className="p-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                          title="Visualizza"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                        {hasRole(['admin', 'tecnico']) && (
+                          <button
+                            onClick={() => router.push(`/machines/${machine.id}/edit`)}
+                            className="p-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                            title="Modifica"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        )}
+                        {hasRole('admin') && (
+                          <button
+                            onClick={() => handleDelete(machine.id)}
+                            className="p-2 rounded-lg bg-gray-900 text-white hover:bg-red-600"
+                            title="Elimina"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
-          <Grid container spacing={{ xs: 2, sm: 3 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredAndSortedMachines.map((machine) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={machine.id}>
-                <MachineCard
-                  machine={machine}
-                  onView={(id) => router.push(`/machines/${id}`)}
-                  onEdit={hasRole(['admin', 'tecnico']) ? (id) => router.push(`/machines/${id}/edit`) : undefined}
-                  onDelete={hasRole('admin') ? handleDelete : undefined}
-                  onQRCode={(id) => router.push(`/machines/${id}`)}
-                />
-              </Grid>
+              <div key={machine.id} className="bg-gray-50 border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{machine.serialNumber}</h3>
+                    <p className="text-sm text-gray-500">{machine.type?.name}</p>
+                  </div>
+                  <span className="badge badge-blue">{machine.type?.category?.name}</span>
+                </div>
+                <div className="space-y-1 text-sm text-gray-600 mb-4">
+                  <p><span className="text-gray-400">Produttore:</span> {machine.manufacturer}</p>
+                  <p><span className="text-gray-400">Modello:</span> {machine.model}</p>
+                  {machine.yearBuilt && <p><span className="text-gray-400">Anno:</span> {machine.yearBuilt}</p>}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push(`/machines/${machine.id}`)}
+                    className="flex-1 btn btn-primary text-sm py-2"
+                  >
+                    Visualizza
+                  </button>
+                  {hasRole(['admin', 'tecnico']) && (
+                    <button
+                      onClick={() => router.push(`/machines/${machine.id}/edit`)}
+                      className="btn btn-secondary text-sm py-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
             ))}
-          </Grid>
+          </div>
         )}
 
         {!loading && filteredAndSortedMachines.length === 0 && (
-          <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
+          <div className="text-center py-12 text-gray-500">
             Nessun macchinario trovato con i filtri selezionati.
-          </Box>
+          </div>
         )}
-      </Widget>
-    </Box>
+      </div>
+    </div>
   );
 }
