@@ -89,6 +89,25 @@ export default function EditMaintenancePage() {
     setDocuments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleDownloadDocument = async (documentId: string, fileName: string) => {
+    try {
+      const response = await axiosInstance.get(`/documents/${documentId}/download`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast.showError('Errore nel download del documento');
+    }
+  };
+
   const onSubmit = async (data: MaintenanceFormData) => {
     try {
       setLoading(true);
@@ -364,7 +383,7 @@ export default function EditMaintenancePage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
+                            onClick={() => handleDownloadDocument(doc.id, doc.fileName)}
                             className="btn btn-secondary text-sm"
                           >
                             Scarica
