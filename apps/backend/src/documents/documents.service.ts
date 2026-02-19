@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
+import { AuditService, AuditUserContext } from '../audit/audit.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 
 @Injectable()
@@ -8,9 +9,10 @@ export class DocumentsService {
   constructor(
     private prisma: PrismaService,
     private minio: MinioService,
+    private audit: AuditService,
   ) {}
 
-  async create(createDocumentDto: CreateDocumentDto, file: any, uploadedById: string) {
+  async create(createDocumentDto: CreateDocumentDto, file: any, uploadedById: string, user?: AuditUserContext) {
     // Verify machine exists
     const machine = await this.prisma.machine.findUnique({
       where: { id: createDocumentDto.machineId },
@@ -24,7 +26,7 @@ export class DocumentsService {
     const { filePath, fileName } = await this.minio.uploadFile(file, 'documents');
 
     // Save metadata to database
-    return this.prisma.document.create({
+    const document = await this.prisma.document.create({
       data: {
         machineId: createDocumentDto.machineId,
         fileName,
@@ -52,6 +54,13 @@ export class DocumentsService {
         },
       },
     });
+
+    if (user) {
+      const { machine: _m, uploadedBy: _u, ...docFlat } = document as any;
+      await this.audit.log('Document', document.id, 'CREATE', user, { after: docFlat });
+    }
+
+    return document;
   }
 
   async findAll(machineId?: string) {
@@ -125,7 +134,7 @@ export class DocumentsService {
     };
   }
 
-  async remove(id: string) {
+  async remove(id: string, user?: AuditUserContext) {
     const document = await this.findOne(id);
 
     // Delete from MinIO
@@ -135,6 +144,11 @@ export class DocumentsService {
     await this.prisma.document.delete({
       where: { id },
     });
+
+    if (user) {
+      const { machine: _m, uploadedBy: _u, ...docFlat } = document as any;
+      await this.audit.log('Document', id, 'DELETE', user, { before: docFlat });
+    }
 
     return { message: 'Document deleted successfully' };
   }

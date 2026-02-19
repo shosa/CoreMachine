@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -23,8 +24,8 @@ export class CategoriesController {
 
   @Post()
   @Roles(UserRole.admin)
-  create(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoriesService.create(createCategoryDto);
+  create(@Body() createCategoryDto: CreateCategoryDto, @Request() req: any) {
+    return this.categoriesService.create(createCategoryDto, req.user);
   }
 
   @Get()
@@ -39,13 +40,13 @@ export class CategoriesController {
 
   @Patch(':id')
   @Roles(UserRole.admin)
-  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
-    return this.categoriesService.update(id, updateCategoryDto);
+  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto, @Request() req: any) {
+    return this.categoriesService.update(id, updateCategoryDto, req.user);
   }
 
   @Delete(':id')
   @Roles(UserRole.admin)
-  remove(@Param('id') id: string) {
-    return this.categoriesService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.categoriesService.remove(id, req.user);
   }
 }

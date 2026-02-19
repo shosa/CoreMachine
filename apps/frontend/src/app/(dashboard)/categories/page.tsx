@@ -7,6 +7,7 @@ import axiosInstance from '@/lib/axios';
 import { useToast } from '@/components/Toast';
 import { Category, CategoryFormData } from '@/types';
 import { useForm, Controller } from 'react-hook-form';
+import DeleteConfirmModal, { RelatedEntity } from '@/components/DeleteConfirmModal';
 
 export default function CategoriesPage() {
   const toast = useToast();
@@ -14,6 +15,8 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; category: Category | null }>({ open: false, category: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { control, handleSubmit, reset } = useForm<CategoryFormData>({
     defaultValues: { name: '', description: '' },
@@ -68,20 +71,28 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Sei sicuro di voler eliminare questa categoria?')) return;
+  const getCategoryRelated = (category: Category): RelatedEntity[] => {
+    const types = category.types || [];
+    const totalMachines = types.reduce((sum, t: any) => sum + (t._count?.machines || 0), 0);
+    return [
+      { label: 'tipi', count: types.length },
+      { label: 'macchinari (tramite tipi)', count: totalMachines },
+    ];
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.category) return;
+    setIsDeleting(true);
     try {
-      await axiosInstance.delete(`/categories/${id}`);
+      await axiosInstance.delete(`/categories/${deleteModal.category.id}`);
       toast.showSuccess('Categoria eliminata');
+      setDeleteModal({ open: false, category: null });
       fetchCategories();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Errore durante l\'eliminazione';
-
-      if (error.response?.status === 400 || errorMessage.includes('vincoli') || errorMessage.includes('foreign key')) {
-        toast.showError('Impossibile eliminare: la categoria \u00e8 utilizzata da altri elementi');
-      } else {
-        toast.showError(errorMessage);
-      }
+      const errorMessage = error.response?.data?.message || "Errore durante l'eliminazione";
+      toast.showError(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -141,7 +152,7 @@ export default function CategoriesPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(category.id)}
+                          onClick={() => setDeleteModal({ open: true, category })}
                           className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
                           title="Elimina"
                         >
@@ -165,6 +176,16 @@ export default function CategoriesPage() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmModal
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, category: null })}
+        onConfirm={handleDeleteConfirm}
+        entityName="Categoria"
+        entityLabel={deleteModal.category?.name ?? ''}
+        staticRelated={deleteModal.category ? getCategoryRelated(deleteModal.category) : []}
+        isDeleting={isDeleting}
+      />
 
       {/* Dialog / Modal */}
       <AnimatePresence>

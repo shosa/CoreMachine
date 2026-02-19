@@ -7,6 +7,7 @@ import axiosInstance from '@/lib/axios';
 import { useToast } from '@/components/Toast';
 import { Type, TypeFormData, Category } from '@/types';
 import { useForm, Controller } from 'react-hook-form';
+import DeleteConfirmModal, { RelatedEntity } from '@/components/DeleteConfirmModal';
 
 export default function TypesPage() {
   const toast = useToast();
@@ -15,6 +16,8 @@ export default function TypesPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; type: Type | null }>({ open: false, type: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { control, handleSubmit, reset } = useForm<TypeFormData>({
     defaultValues: { categoryId: 0, name: '', description: '' },
@@ -72,20 +75,24 @@ export default function TypesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Sei sicuro di voler eliminare questo tipo?')) return;
+  const getTypeRelated = (type: Type): RelatedEntity[] => {
+    const count = (type as any)._count?.machines || 0;
+    return [{ label: 'macchinari', count }];
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.type) return;
+    setIsDeleting(true);
     try {
-      await axiosInstance.delete(`/types/${id}`);
+      await axiosInstance.delete(`/types/${deleteModal.type.id}`);
       toast.showSuccess('Tipo eliminato');
+      setDeleteModal({ open: false, type: null });
       fetchData();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Errore durante l\'eliminazione';
-
-      if (error.response?.status === 400 || errorMessage.includes('vincoli') || errorMessage.includes('foreign key')) {
-        toast.showError('Impossibile eliminare: il tipo è utilizzato da macchinari esistenti');
-      } else {
-        toast.showError(errorMessage);
-      }
+      const errorMessage = error.response?.data?.message || "Errore durante l'eliminazione";
+      toast.showError(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -147,7 +154,7 @@ export default function TypesPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(type.id)}
+                          onClick={() => setDeleteModal({ open: true, type })}
                           className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-red-600 transition-colors"
                           title="Elimina"
                         >
@@ -171,6 +178,16 @@ export default function TypesPage() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmModal
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, type: null })}
+        onConfirm={handleDeleteConfirm}
+        entityName="Tipo"
+        entityLabel={deleteModal.type ? `${deleteModal.type.name} (${deleteModal.type.category?.name ?? ''})` : ''}
+        staticRelated={deleteModal.type ? getTypeRelated(deleteModal.type) : []}
+        isDeleting={isDeleting}
+      />
 
       {/* Dialog / Modal */}
       <AnimatePresence>

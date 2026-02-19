@@ -1,14 +1,18 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService, AuditUserContext } from '../audit/audit.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+  ) {}
 
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, actor: AuditUserContext) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: createUserDto.email },
     });
@@ -27,12 +31,24 @@ export class UsersService {
     });
 
     const { password: _, ...userWithoutPassword } = user;
+
+    await this.audit.log('User', user.id, 'CREATE', actor, { after: userWithoutPassword });
+
     return userWithoutPassword;
   }
 
   async findAll() {
     const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            maintenances: true,
+            uploadedDocuments: true,
+            scheduledMaintenances: true,
+          },
+        },
+      },
     });
 
     return users.map(user => {
@@ -59,8 +75,8 @@ export class UsersService {
     });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
-    await this.findById(id);
+  async update(id: string, updateUserDto: UpdateUserDto, actor: AuditUserContext) {
+    const before = await this.findById(id);
 
     if (updateUserDto.email) {
       const existingUser = await this.prisma.user.findUnique({
@@ -84,15 +100,24 @@ export class UsersService {
     });
 
     const { password: _, ...userWithoutPassword } = user;
+
+    // Diff without password fields
+    const { password: _pb, ...beforeSafe } = before;
+    const diff = this.audit.diffObjects(beforeSafe, userWithoutPassword);
+    await this.audit.log('User', id, 'UPDATE', actor, diff);
+
     return userWithoutPassword;
   }
 
-  async remove(id: string) {
-    await this.findById(id);
+  async remove(id: string, actor: AuditUserContext) {
+    const user = await this.findById(id);
 
     await this.prisma.user.delete({
       where: { id },
     });
+
+    const { password: _, ...userSafe } = user;
+    await this.audit.log('User', id, 'DELETE', actor, { before: userSafe });
 
     return { message: 'User deleted successfully' };
   }

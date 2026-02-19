@@ -8,6 +8,7 @@ import UserCard from '@/components/UserCard';
 import axiosInstance from '@/lib/axios';
 import { useToast } from '@/components/Toast';
 import { User } from '@/types';
+import DeleteConfirmModal, { RelatedEntity } from '@/components/DeleteConfirmModal';
 
 type ViewMode = 'grid' | 'table';
 type SortOption = 'name' | 'email' | 'role' | 'newest' | 'oldest';
@@ -44,6 +45,8 @@ export default function UsersPage() {
     role: '',
     isActive: '',
   });
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; user: User | null }>({ open: false, user: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -71,21 +74,35 @@ export default function UsersPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Sei sicuro di voler eliminare questo utente?')) return;
+  const getUserRelated = (user: User): RelatedEntity[] => {
+    const counts = (user as any)._count || {};
+    return [
+      { label: 'manutenzioni eseguite', count: counts.maintenances || 0 },
+      { label: 'documenti caricati', count: counts.uploadedDocuments || 0 },
+      { label: 'manutenzioni programmate create', count: counts.scheduledMaintenances || 0 },
+    ];
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.user) return;
+    setIsDeleting(true);
     try {
-      await axiosInstance.delete(`/users/${id}`);
+      await axiosInstance.delete(`/users/${deleteModal.user.id}`);
       toast.showSuccess('Utente eliminato');
+      setDeleteModal({ open: false, user: null });
       fetchUsers();
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || "Errore durante l'eliminazione";
-
-      if (error.response?.status === 400 || errorMessage.includes('vincoli') || errorMessage.includes('foreign key')) {
-        toast.showError("Impossibile eliminare: l'utente ha operazioni o documenti associati");
-      } else {
-        toast.showError(errorMessage);
-      }
+      toast.showError(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  // Keep handleDelete for UserCard compatibility (wraps modal)
+  const handleDelete = (id: string) => {
+    const user = users.find(u => String(u.id) === String(id));
+    if (user) setDeleteModal({ open: true, user });
   };
 
   const handleClearFilters = () => {
@@ -378,7 +395,7 @@ export default function UsersPage() {
                         </button>
                         <button
                           className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-red-600 transition-colors"
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => setDeleteModal({ open: true, user })}
                           title="Elimina"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -405,6 +422,16 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmModal
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, user: null })}
+        onConfirm={handleDeleteConfirm}
+        entityName="Utente"
+        entityLabel={deleteModal.user ? `${deleteModal.user.firstName} ${deleteModal.user.lastName}` : ''}
+        staticRelated={deleteModal.user ? getUserRelated(deleteModal.user) : []}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  Request,
 } from '@nestjs/common';
 import { MachinesService } from './machines.service';
 import { CreateMachineDto } from './dto/create-machine.dto';
@@ -24,8 +25,8 @@ export class MachinesController {
 
   @Post()
   @Roles(UserRole.admin)
-  create(@Body() createMachineDto: CreateMachineDto) {
-    return this.machinesService.create(createMachineDto);
+  create(@Body() createMachineDto: CreateMachineDto, @Request() req: any) {
+    return this.machinesService.create(createMachineDto, req.user);
   }
 
   @Get()
@@ -51,13 +52,13 @@ export class MachinesController {
 
   @Patch(':id')
   @Roles(UserRole.admin, UserRole.tecnico)
-  update(@Param('id') id: string, @Body() updateMachineDto: UpdateMachineDto) {
-    return this.machinesService.update(id, updateMachineDto);
+  update(@Param('id') id: string, @Body() updateMachineDto: UpdateMachineDto, @Request() req: any) {
+    return this.machinesService.update(id, updateMachineDto, req.user);
   }
 
   @Delete(':id')
   @Roles(UserRole.admin)
-  remove(@Param('id') id: string) {
-    return this.machinesService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.machinesService.remove(id, req.user);
   }
 }

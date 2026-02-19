@@ -3,6 +3,7 @@ import * as QRCode from 'qrcode';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MeilisearchService } from '../meilisearch/meilisearch.service';
+import { AuditService, AuditUserContext } from '../audit/audit.service';
 import { CreateMachineDto } from './dto/create-machine.dto';
 import { UpdateMachineDto } from './dto/update-machine.dto';
 
@@ -12,9 +13,10 @@ export class MachinesService {
     private prisma: PrismaService,
     private meilisearch: MeilisearchService,
     private configService: ConfigService,
+    private audit: AuditService,
   ) {}
 
-  async create(createMachineDto: CreateMachineDto) {
+  async create(createMachineDto: CreateMachineDto, user: AuditUserContext) {
     // Verify type exists
     const type = await this.prisma.type.findUnique({
       where: { id: createMachineDto.typeId },
@@ -52,6 +54,10 @@ export class MachinesService {
 
     // Index in Meilisearch
     await this.meilisearch.indexMachine(machine);
+
+    // Audit log
+    const { type: _t, ...machineFlat } = machine as any;
+    await this.audit.log('Machine', machine.id, 'CREATE', user, { after: machineFlat });
 
     return machine;
   }
@@ -129,8 +135,8 @@ export class MachinesService {
     return machine;
   }
 
-  async update(id: string, updateMachineDto: UpdateMachineDto) {
-    await this.findOne(id);
+  async update(id: string, updateMachineDto: UpdateMachineDto, user: AuditUserContext) {
+    const before = await this.findOne(id);
 
     if (updateMachineDto.typeId) {
       const type = await this.prisma.type.findUnique({
@@ -173,11 +179,17 @@ export class MachinesService {
     // Update in Meilisearch
     await this.meilisearch.indexMachine(machine);
 
+    // Audit log — strip relations before diffing
+    const { type: _tb, documents: _db, maintenances: _mb, scheduledMaintenances: _sb, ...beforeFlat } = before as any;
+    const { type: _ta, ...afterFlat } = machine as any;
+    const diff = this.audit.diffObjects(beforeFlat, afterFlat);
+    await this.audit.log('Machine', id, 'UPDATE', user, diff);
+
     return machine;
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, user: AuditUserContext) {
+    const machine = await this.findOne(id);
 
     await this.prisma.machine.delete({
       where: { id },
@@ -185,6 +197,10 @@ export class MachinesService {
 
     // Remove from Meilisearch
     await this.meilisearch.deleteMachine(id);
+
+    // Audit log
+    const { type: _t, documents: _d, maintenances: _m, scheduledMaintenances: _sm, ...machineFlat } = machine as any;
+    await this.audit.log('Machine', id, 'DELETE', user, { before: machineFlat });
 
     return { message: 'Machine deleted successfully' };
   }

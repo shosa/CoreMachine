@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import axiosInstance from '@/lib/axios';
 import { useToast } from '@/components/Toast';
-import { Machine, Maintenance, Document } from '@/types';
+import { Machine, Maintenance, Document, AuditLog } from '@/types';
+import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -100,6 +101,14 @@ export default function MachineDetailPage() {
   const [docPreviewOpen, setDocPreviewOpen] = useState(false);
   const [docPreviewUrl, setDocPreviewUrl] = useState('');
   const [docPreviewName, setDocPreviewName] = useState('');
+  const [deleteDocModal, setDeleteDocModal] = useState<{ open: boolean; docId: string; docName: string }>({ open: false, docId: '', docName: '' });
+  const [isDeletingDoc, setIsDeletingDoc] = useState(false);
+
+  /* ---------- audit log (lazy) ---------- */
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditLoaded, setAuditLoaded] = useState(false);
+  const [auditExpandedRows, setAuditExpandedRows] = useState<Set<string>>(new Set());
 
   /* ---------- sorting helpers for tables ---------- */
   const [maintSort, setMaintSort] = useState<{ field: string; dir: 'asc' | 'desc' }>({ field: 'date', dir: 'desc' });
@@ -194,15 +203,18 @@ export default function MachineDetailPage() {
     }
   };
 
-  const handleDeleteDocument = async (docId: string) => {
-    if (!confirm('Sei sicuro di voler eliminare questo documento?')) return;
-
+  const handleDeleteDocumentConfirm = async () => {
+    if (!deleteDocModal.docId) return;
+    setIsDeletingDoc(true);
     try {
-      await axiosInstance.delete(`/documents/${docId}`);
+      await axiosInstance.delete(`/documents/${deleteDocModal.docId}`);
       toast.showSuccess('Documento eliminato');
+      setDeleteDocModal({ open: false, docId: '', docName: '' });
       fetchMachine();
     } catch (error) {
       toast.showError("Errore durante l'eliminazione");
+    } finally {
+      setIsDeletingDoc(false);
     }
   };
 
@@ -496,6 +508,33 @@ export default function MachineDetailPage() {
     );
   };
 
+  const handleTabChange = async (idx: number) => {
+    setTabValue(idx);
+    if (idx === 3 && !auditLoaded) {
+      setAuditLoading(true);
+      try {
+        const res = await axiosInstance.get('/audit', {
+          params: { entity: 'Machine', entityId: params.id, limit: 100 },
+        });
+        setAuditLogs(res.data.data ?? []);
+        setAuditLoaded(true);
+      } catch {
+        // silent
+      } finally {
+        setAuditLoading(false);
+      }
+    }
+  };
+
+  const toggleAuditRow = (id: string) => {
+    setAuditExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const SortIndicator = ({ field, sort }: { field: string; sort: { field: string; dir: string } }) => {
     if (sort.field !== field) return null;
     return <span className="ml-1 text-xs">{sort.dir === 'asc' ? '\u25B2' : '\u25BC'}</span>;
@@ -528,6 +567,11 @@ export default function MachineDetailPage() {
     { label: 'Dettagli Tecnici' },
     { label: `Storico Manutenzioni (${machine?.maintenances?.length || 0})`, icon: <IconWrench /> },
     { label: `Documenti (${machine?.documents?.length || 0})`, icon: <IconDoc /> },
+    { label: 'Storico Modifiche', icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+      </svg>
+    )},
   ];
 
   /* ---------- loading / not found ---------- */
@@ -641,7 +685,7 @@ export default function MachineDetailPage() {
             {tabs.map((tab, idx) => (
               <button
                 key={idx}
-                onClick={() => setTabValue(idx)}
+                onClick={() => handleTabChange(idx)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   tabValue === idx
                     ? 'border-gray-900 text-gray-900'
@@ -754,6 +798,125 @@ export default function MachineDetailPage() {
           </div>
         </TabPanel>
 
+        {/* Tab: Storico Modifiche */}
+        <TabPanel value={tabValue} index={3}>
+          <div className="px-4">
+            {auditLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                Nessuna modifica registrata per questo macchinario.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 w-[170px]">Data</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 w-[120px]">Azione</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Utente</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600 w-[80px]">Dettagli</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.map((log) => {
+                      const ACTION_COLORS: Record<string, string> = {
+                        CREATE: 'bg-green-100 text-green-800',
+                        UPDATE: 'bg-blue-100 text-blue-800',
+                        DELETE: 'bg-red-100 text-red-800',
+                      };
+                      const ACTION_LABELS: Record<string, string> = {
+                        CREATE: 'Creazione',
+                        UPDATE: 'Modifica',
+                        DELETE: 'Eliminazione',
+                      };
+                      const keys = [
+                        ...Object.keys(log.changes?.before ?? {}),
+                        ...Object.keys(log.changes?.after ?? {}),
+                      ];
+                      const hasChanges = keys.length > 0;
+                      return (
+                        <>
+                          <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 font-mono text-xs text-gray-600 whitespace-nowrap">
+                              {new Date(log.createdAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ACTION_COLORS[log.action] ?? ''}`}>
+                                {ACTION_LABELS[log.action] ?? log.action}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{log.userName}</td>
+                            <td className="px-4 py-3">
+                              {hasChanges ? (
+                                <button
+                                  onClick={() => toggleAuditRow(log.id)}
+                                  className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
+                                >
+                                  <svg className={`w-4 h-4 transition-transform ${auditExpandedRows.has(log.id) ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                  Vedi
+                                </button>
+                              ) : (
+                                <span className="text-gray-300 text-xs">—</span>
+                              )}
+                            </td>
+                          </tr>
+                          <AnimatePresence>
+                            {auditExpandedRows.has(log.id) && (
+                              <motion.tr
+                                key={`${log.id}-exp`}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                              >
+                                <td colSpan={4} className="px-4 pb-4 bg-gray-50">
+                                  <div className="mt-2 rounded-lg border border-gray-200 overflow-hidden text-xs">
+                                    <table className="w-full">
+                                      <thead>
+                                        <tr className="bg-gray-50 border-b border-gray-200">
+                                          <th className="text-left px-3 py-2 font-semibold text-gray-600 w-1/3">Campo</th>
+                                          <th className="text-left px-3 py-2 font-semibold text-red-600 w-1/3">Prima</th>
+                                          <th className="text-left px-3 py-2 font-semibold text-green-600 w-1/3">Dopo</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {Array.from(new Set(keys)).map((key, i) => {
+                                          const bval = log.changes?.before?.[key];
+                                          const aval = log.changes?.after?.[key];
+                                          const changed = JSON.stringify(bval) !== JSON.stringify(aval);
+                                          return (
+                                            <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                              <td className="px-3 py-2 font-mono text-gray-700">{key}</td>
+                                              <td className={`px-3 py-2 font-mono ${changed && bval !== undefined ? 'bg-red-50 text-red-800' : 'text-gray-500'}`}>
+                                                {bval !== undefined ? String(bval) : <span className="text-gray-300">—</span>}
+                                              </td>
+                                              <td className={`px-3 py-2 font-mono ${changed && aval !== undefined ? 'bg-green-50 text-green-800' : 'text-gray-500'}`}>
+                                                {aval !== undefined ? String(aval) : <span className="text-gray-300">—</span>}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </td>
+                              </motion.tr>
+                            )}
+                          </AnimatePresence>
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </TabPanel>
+
         {/* Tab: Documenti */}
         <TabPanel value={tabValue} index={2}>
           <div className="px-4">
@@ -812,7 +975,7 @@ export default function MachineDetailPage() {
                               </button>
                               <button
                                 className="p-1.5 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
-                                onClick={() => handleDeleteDocument(doc.id as string)}
+                                onClick={() => setDeleteDocModal({ open: true, docId: doc.id as string, docName: doc.fileName })}
                                 title="Elimina"
                               >
                                 <IconTrash />
@@ -1051,6 +1214,15 @@ export default function MachineDetailPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <DeleteConfirmModal
+        open={deleteDocModal.open}
+        onClose={() => setDeleteDocModal({ open: false, docId: '', docName: '' })}
+        onConfirm={handleDeleteDocumentConfirm}
+        entityName="Documento"
+        entityLabel={deleteDocModal.docName}
+        isDeleting={isDeletingDoc}
+      />
     </div>
   );
 }

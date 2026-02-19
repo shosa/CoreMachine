@@ -25,8 +25,8 @@ export class ScheduledMaintenancesController {
 
   @Post()
   @Roles(UserRole.admin, UserRole.tecnico)
-  create(@Body() createDto: CreateScheduledMaintenanceDto, @Request() req) {
-    return this.service.create(createDto, req.user.id);
+  create(@Body() createDto: CreateScheduledMaintenanceDto, @Request() req: any) {
+    return this.service.create(createDto, req.user.id, req.user);
   }
 
   @Get()
@@ -50,13 +50,13 @@ export class ScheduledMaintenancesController {
 
   @Patch(':id')
   @Roles(UserRole.admin, UserRole.tecnico)
-  update(@Param('id') id: string, @Body() updateDto: UpdateScheduledMaintenanceDto) {
-    return this.service.update(id, updateDto);
+  update(@Param('id') id: string, @Body() updateDto: UpdateScheduledMaintenanceDto, @Request() req: any) {
+    return this.service.update(id, updateDto, req.user);
   }
 
   @Delete(':id')
   @Roles(UserRole.admin)
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.service.remove(id, req.user);
   }
 }

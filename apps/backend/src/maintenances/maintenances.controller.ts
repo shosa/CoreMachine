@@ -37,7 +37,7 @@ export class MaintenancesController {
     console.log('MaintenanceController.create called');
     console.log('Documents received:', documents?.length || 0);
     console.log('User ID:', req?.user?.id);
-    return this.maintenancesService.create(createMaintenanceDto, documents, req?.user?.id);
+    return this.maintenancesService.create(createMaintenanceDto, documents, req?.user?.id, req?.user);
   }
 
   @Get()
@@ -64,13 +64,13 @@ export class MaintenancesController {
     @UploadedFiles() documents?: any[],
     @Request() req?: any,
   ) {
-    return this.maintenancesService.update(id, updateMaintenanceDto, documents, req?.user?.id);
+    return this.maintenancesService.update(id, updateMaintenanceDto, documents, req?.user?.id, req?.user);
   }
 
   @Delete(':id')
   @Roles(UserRole.admin)
-  remove(@Param('id') id: string) {
-    return this.maintenancesService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.maintenancesService.remove(id, req.user);
   }
 
   @Delete(':maintenanceId/documents/:documentId')

@@ -214,3 +214,36 @@ export interface DashboardStats {
   totalDocuments: number;
   totalUsers: number;
 }
+
+// Audit Log types
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
+export type AuditEntity =
+  | 'Machine'
+  | 'Maintenance'
+  | 'ScheduledMaintenance'
+  | 'Document'
+  | 'Category'
+  | 'Type'
+  | 'User';
+
+export interface AuditLog {
+  id: string;
+  entity: AuditEntity;
+  entityId: string;
+  action: AuditAction;
+  userId: string;
+  userName: string;
+  changes?: {
+    before?: Record<string, any>;
+    after?: Record<string, any>;
+  };
+  createdAt: string;
+}
+
+export interface AuditLogResponse {
+  data: AuditLog[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -23,8 +24,8 @@ export class UsersController {
 
   @Post()
   @Roles(UserRole.admin)
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  create(@Body() createUserDto: CreateUserDto, @Request() req: any) {
+    return this.usersService.create(createUserDto, req.user);
   }
 
   @Get()
@@ -41,13 +42,13 @@ export class UsersController {
 
   @Patch(':id')
   @Roles(UserRole.admin)
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Request() req: any) {
+    return this.usersService.update(id, updateUserDto, req.user);
   }
 
   @Delete(':id')
   @Roles(UserRole.admin)
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.usersService.remove(id, req.user);
   }
 }

@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  Request,
 } from '@nestjs/common';
 import { TypesService } from './types.service';
 import { CreateTypeDto } from './dto/create-type.dto';
@@ -24,8 +25,8 @@ export class TypesController {
 
   @Post()
   @Roles(UserRole.admin)
-  create(@Body() createTypeDto: CreateTypeDto) {
-    return this.typesService.create(createTypeDto);
+  create(@Body() createTypeDto: CreateTypeDto, @Request() req: any) {
+    return this.typesService.create(createTypeDto, req.user);
   }
 
   @Get()
@@ -40,13 +41,13 @@ export class TypesController {
 
   @Patch(':id')
   @Roles(UserRole.admin)
-  update(@Param('id') id: string, @Body() updateTypeDto: UpdateTypeDto) {
-    return this.typesService.update(id, updateTypeDto);
+  update(@Param('id') id: string, @Body() updateTypeDto: UpdateTypeDto, @Request() req: any) {
+    return this.typesService.update(id, updateTypeDto, req.user);
   }
 
   @Delete(':id')
   @Roles(UserRole.admin)
-  remove(@Param('id') id: string) {
-    return this.typesService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.typesService.remove(id, req.user);
   }
 }

@@ -8,6 +8,7 @@ import axiosInstance from '@/lib/axios';
 import { useToast } from '@/components/Toast';
 import { Machine } from '@/types';
 import { useAuthStore } from '@/store/authStore';
+import DeleteConfirmModal, { RelatedEntity } from '@/components/DeleteConfirmModal';
 
 type ViewMode = 'grid' | 'table';
 type SortOption = 'serialNumber' | 'manufacturer' | 'model' | 'yearBuilt' | 'newest' | 'oldest';
@@ -40,6 +41,8 @@ export default function MachinesPage() {
 
   const [categories, setCategories] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; machine: Machine | null }>({ open: false, machine: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchMachines();
@@ -77,20 +80,28 @@ export default function MachinesPage() {
     }
   }, [filters.category, categories]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Sei sicuro di voler eliminare questo macchinario?')) return;
+  const getMachineRelated = (machine: Machine): RelatedEntity[] => {
+    const counts = (machine as any)._count || {};
+    return [
+      { label: 'manutenzioni', count: counts.maintenances || 0 },
+      { label: 'documenti', count: counts.documents || 0 },
+      { label: 'manutenzioni programmate', count: counts.scheduledMaintenances || 0 },
+    ];
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.machine) return;
+    setIsDeleting(true);
     try {
-      await axiosInstance.delete(`/machines/${id}`);
+      await axiosInstance.delete(`/machines/${deleteModal.machine.id}`);
       showSuccess('Macchinario eliminato con successo');
+      setDeleteModal({ open: false, machine: null });
       fetchMachines();
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || "Errore durante l'eliminazione";
-      if (error.response?.status === 400 || errorMessage.includes('vincoli')) {
-        showError('Impossibile eliminare: il macchinario ha documenti o manutenzioni associate');
-      } else {
-        showError(errorMessage);
-      }
+      showError(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -414,7 +425,7 @@ export default function MachinesPage() {
                         )}
                         {hasRole('admin') && (
                           <button
-                            onClick={() => handleDelete(machine.id)}
+                            onClick={() => setDeleteModal({ open: true, machine })}
                             className="p-2 rounded-lg bg-gray-900 text-white hover:bg-red-600"
                             title="Elimina"
                           >
@@ -475,6 +486,16 @@ export default function MachinesPage() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmModal
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, machine: null })}
+        onConfirm={handleDeleteConfirm}
+        entityName="Macchinario"
+        entityLabel={deleteModal.machine ? `${deleteModal.machine.manufacturer} ${deleteModal.machine.model} (${deleteModal.machine.serialNumber})` : ''}
+        staticRelated={deleteModal.machine ? getMachineRelated(deleteModal.machine) : []}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

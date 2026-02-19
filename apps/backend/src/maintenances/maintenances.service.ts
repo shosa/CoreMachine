@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
+import { AuditService, AuditUserContext } from '../audit/audit.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
 import { DocumentCategory } from '@prisma/client';
@@ -10,9 +11,10 @@ export class MaintenancesService {
   constructor(
     private prisma: PrismaService,
     private minio: MinioService,
+    private audit: AuditService,
   ) {}
 
-  async create(createMaintenanceDto: CreateMaintenanceDto, documents?: any[], uploadedById?: string) {
+  async create(createMaintenanceDto: CreateMaintenanceDto, documents?: any[], uploadedById?: string, user?: AuditUserContext) {
     console.log('MaintenanceService.create called with documents:', documents?.length || 0);
 
     // Verify machine exists
@@ -102,6 +104,11 @@ export class MaintenancesService {
       maintenance.documents = uploadedDocuments;
     } else {
       console.log('No documents to upload or no uploadedById');
+    }
+
+    if (user) {
+      const { machine: _m, operator: _o, documents: _d, ...maintenanceFlat } = maintenance as any;
+      await this.audit.log('Maintenance', maintenance.id, 'CREATE', user, { after: maintenanceFlat });
     }
 
     return maintenance;
@@ -198,8 +205,8 @@ export class MaintenancesService {
     return maintenance;
   }
 
-  async update(id: string, updateMaintenanceDto: UpdateMaintenanceDto, documents?: any[], uploadedById?: string) {
-    await this.findOne(id);
+  async update(id: string, updateMaintenanceDto: UpdateMaintenanceDto, documents?: any[], uploadedById?: string, user?: AuditUserContext) {
+    const before = await this.findOne(id);
 
     if (updateMaintenanceDto.machineId) {
       const machine = await this.prisma.machine.findUnique({
@@ -281,15 +288,27 @@ export class MaintenancesService {
       maintenance.documents = [...(maintenance.documents || []), ...uploadedDocuments];
     }
 
+    if (user) {
+      const { machine: _mb, operator: _ob, documents: _db, ...beforeFlat } = before as any;
+      const { machine: _ma, operator: _oa, documents: _da, ...afterFlat } = maintenance as any;
+      const diff = this.audit.diffObjects(beforeFlat, afterFlat);
+      await this.audit.log('Maintenance', id, 'UPDATE', user, diff);
+    }
+
     return maintenance;
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, user?: AuditUserContext) {
+    const maintenance = await this.findOne(id);
 
     await this.prisma.maintenance.delete({
       where: { id },
     });
+
+    if (user) {
+      const { machine: _m, operator: _o, documents: _d, ...maintenanceFlat } = maintenance as any;
+      await this.audit.log('Maintenance', id, 'DELETE', user, { before: maintenanceFlat });
+    }
 
     return { message: 'Maintenance deleted successfully' };
   }

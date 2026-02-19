@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService, AuditUserContext } from '../audit/audit.service';
 import { CreateTypeDto } from './dto/create-type.dto';
 import { UpdateTypeDto } from './dto/update-type.dto';
 
 @Injectable()
 export class TypesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+  ) {}
 
-  async create(createTypeDto: CreateTypeDto) {
+  async create(createTypeDto: CreateTypeDto, user: AuditUserContext) {
     // Verify category exists
     const category = await this.prisma.category.findUnique({
       where: { id: createTypeDto.categoryId },
@@ -29,12 +33,17 @@ export class TypesService {
       throw new ConflictException('Type name already exists in this category');
     }
 
-    return this.prisma.type.create({
+    const type = await this.prisma.type.create({
       data: createTypeDto,
       include: {
         category: true,
       },
     });
+
+    const { category: _c, ...typeFlat } = type as any;
+    await this.audit.log('Type', type.id, 'CREATE', user, { after: typeFlat });
+
+    return type;
   }
 
   async findAll(categoryId?: string) {
@@ -68,8 +77,8 @@ export class TypesService {
     return type;
   }
 
-  async update(id: string, updateTypeDto: UpdateTypeDto) {
-    await this.findOne(id);
+  async update(id: string, updateTypeDto: UpdateTypeDto, user: AuditUserContext) {
+    const before = await this.findOne(id);
 
     if (updateTypeDto.categoryId) {
       const category = await this.prisma.category.findUnique({
@@ -81,21 +90,31 @@ export class TypesService {
       }
     }
 
-    return this.prisma.type.update({
+    const type = await this.prisma.type.update({
       where: { id },
       data: updateTypeDto,
       include: {
         category: true,
       },
     });
+
+    const { category: _cb, machines: _mb, ...beforeFlat } = before as any;
+    const { category: _ca, ...afterFlat } = type as any;
+    const diff = this.audit.diffObjects(beforeFlat, afterFlat);
+    await this.audit.log('Type', id, 'UPDATE', user, diff);
+
+    return type;
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, user: AuditUserContext) {
+    const type = await this.findOne(id);
 
     await this.prisma.type.delete({
       where: { id },
     });
+
+    const { category: _c, machines: _m, ...typeFlat } = type as any;
+    await this.audit.log('Type', id, 'DELETE', user, { before: typeFlat });
 
     return { message: 'Type deleted successfully' };
   }

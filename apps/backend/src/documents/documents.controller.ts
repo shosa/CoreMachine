@@ -35,7 +35,7 @@ export class DocumentsController {
     @UploadedFile() file: any,
     @Request() req: any,
   ) {
-    return this.documentsService.create(createDocumentDto, file, req.user.id);
+    return this.documentsService.create(createDocumentDto, file, req.user.id, req.user);
   }
 
   @Get()
@@ -73,7 +73,7 @@ export class DocumentsController {
 
   @Delete(':id')
   @Roles(UserRole.admin)
-  remove(@Param('id') id: string) {
-    return this.documentsService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.documentsService.remove(id, req.user);
   }
 }
