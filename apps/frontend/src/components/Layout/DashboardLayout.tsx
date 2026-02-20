@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import GlobalSearch from '@/components/GlobalSearch';
+import axiosInstance from '@/lib/axios';
 
 interface NavigationItem {
   label: string;
@@ -122,9 +123,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [draftsCount, setDraftsCount] = useState(0);
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, hasRole } = useAuthStore();
+
+  useEffect(() => {
+    if (!hasRole(['admin', 'tecnico'])) return;
+    const fetchDrafts = () => {
+      axiosInstance.get('/maintenances/drafts')
+        .then((r) => setDraftsCount(Array.isArray(r.data) ? r.data.length : 0))
+        .catch(() => {});
+    };
+    fetchDrafts();
+    // Rifresca ogni 60 secondi
+    const interval = setInterval(fetchDrafts, 60_000);
+    return () => clearInterval(interval);
+  }, [hasRole]);
 
   const handleLogout = () => {
     logout();
@@ -191,7 +206,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {filterNavItems(navigationItems).map((item) => {
               const isActive = isItemActive(item.href);
               return (
-                <li key={item.label}>
+                <li key={item.label} className="relative">
                   <Link
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
@@ -205,7 +220,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     `}
                   >
                     <span className={isActive ? 'text-gray-900' : ''}>{item.icon}</span>
-                    {!sidebarCollapsed && <span>{item.label}</span>}
+                    {!sidebarCollapsed && (
+                      <span className="flex-1 flex items-center justify-between gap-2">
+                        <span>{item.label}</span>
+                        {item.href === '/maintenances/pending' && draftsCount > 0 && (
+                          <span className="min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none">
+                            {draftsCount > 99 ? '99+' : draftsCount}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {sidebarCollapsed && item.href === '/maintenances/pending' && draftsCount > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                    )}
                   </Link>
                 </li>
               );
