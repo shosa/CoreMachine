@@ -1,47 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as net from 'net';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class PrinterService {
   private readonly logger = new Logger(PrinterService.name);
   private readonly host: string;
   private readonly port: number;
-
-  /**
-   * 203 DPI Zebra → 8 dots/mm
-   * Roll: 76mm wide  → 608 dots  (asse X, larghezza fisica)
-   * Feed: 174mm long → 1392 dots (asse Y, lunghezza fisica)
-   *
-   * Layout etichetta (vista landscape, orientata con QR a sinistra):
-   *
-   *   ┌─────────────────────────────────────────────────────┐
-   *   │         │                                           │
-   *   │  QR     │  SN-2024-001   (matricola grande)        │
-   *   │  60×60  │  ══════════════════════════              │
-   *   │         │  Fresatrice CNC verticale                │
-   *   │         │  Mazak  ·  VTC-800                       │
-   *   └─────────────────────────────────────────────────────┘
-   *    ← 68mm → 2mm ←──────────── 104mm ──────────────────→
-   *
-   * Il roll esce in portrait (76mm wide), quindi usiamo rotazione ^A0R
-   * (90° CW) per il testo: le Y del testo diventano la X fisica.
-   *
-   * Convenzione coordinate usate qui: (col, row) in mm, landscape logico
-   *   col = asse lungo etichetta (0→174mm) → maps to ZPL ^FO Y (feed)
-   *   row = asse corto etichetta (0→76mm)  → maps to ZPL ^FO X (width)
-   *
-   * Con rotazione R:  FO(col*d, (76-row)*d) oppure più semplicemente
-   * partiamo da row=0 = bordo superiore quando l'etichetta è landscape.
-   * ^A0R posiziona il testo ruotato: X è il bordo sinistro del testo
-   * lungo l'asse width (scende), Y è la posizione lungo l'asse feed.
-   *
-   * Per semplicità usiamo coordinate dirette in dots, testate empiricamente:
-   *   - ^FO <x_dots>, <y_dots>  con x = posizione sul roll (0=left, 608=right)
-   *                                   y = posizione feed   (0=top, 1392=bottom)
-   *   - Testo con ^A0R: il carattere cresce verso x crescente (giù nel roll)
-   *     e si posiziona partendo da y (lungo il feed)
-   */
+  /** 203 DPI Zebra → 8 dots/mm */
   private readonly dpmm = 8;
 
   constructor(private configService: ConfigService) {
@@ -57,89 +24,131 @@ export class PrinterService {
     model: string,
     appUrl: string,
   ): Promise<{ success: boolean; message: string }> {
-    const d = this.dpmm;
     const qrData = `${appUrl}/m/${machineId}`;
-
-    // Tronca testi per evitare overflow
     const sn   = (serialNumber || '').substring(0, 20);
     const desc = (description  || '').substring(0, 32);
-    const mf   = `${manufacturer || ''} ${model || ''}`.trim().substring(0, 32);
+    const mf   = (manufacturer || '').substring(0, 20);
+    const mo   = (model        || '').substring(0, 20);
 
-    // Dimensioni etichetta in dots
-    const pw = 76  * d;  // 608  — print width (larghezza roll)
-    const ll = 174 * d;  // 1392 — label length (feed)
-
-    // ── QR CODE ──────────────────────────────────────────────────────────
-    // Posizionato in alto-sinistra (landscape), magnification 5 → ~60×60mm
-    // ^FO x,y → x=margin sinistro (roll), y=margin top (feed)
-    const qrX   = 4 * d;   // 32 dots dal bordo sinistro roll
-    const qrY   = 4 * d;   // 32 dots dal top feed
-    const qrMag = 5;        // magnification 5 = ~50×50mm
-
-    // ── LINEA VERTICALE SEPARATRICE ───────────────────────────────────────
-    // ^GB larghezza, altezza, spessore
-    // Linea verticale: larghezza=spessore (3 dots), altezza=tutta l'etichetta
-    const lineX = 70 * d;  // 560 dots — a 70mm dal bordo sinistro
-    const lineY = 0;
-    const lineH = ll;       // tutta la lunghezza
-    const lineT = 3;        // 3 dots spessore
-
-    // ── TESTI (rotazione R = 90° CW, leggibili landscape) ─────────────────
-    // Con ^A0R il testo "cresce" verso x positivo (verso il basso nel roll)
-    // x = posizione verticale nel roll (row)
-    // y = posizione orizzontale nel feed (colonna)
-
-    // Matricola: grande, partenza 4mm dal top roll, 74mm dal top feed
-    const snSize = 14 * d;  // 112 dots ≈ 14mm font
-    const snX    = 4 * d;   // 32 dots dal bordo top roll
-    const snY    = 74 * d;  // 592 dots dal top feed (dopo la linea ~70mm + 4mm margin)
-
-    // Linea orizzontale sotto matricola
-    const hlY    = snY + snSize + (2 * d);  // 2mm sotto il testo
-    const hlX    = 4 * d;
-    const hlW    = (174 - 74 - 4) * d;     // larghezza zona testo in dots
-    const hlH    = 3;
-
-    // Descrizione: 10mm font
-    const descSize = 9 * d;
-    const descX    = 4 * d;
-    const descY    = snY + snSize + (6 * d);
-
-    // Produttore · Modello: 8mm font
-    const mfSize = 8 * d;
-    const mfX    = 4 * d;
-    const mfY    = descY + descSize + (4 * d);
+    // Genera GFA dal QR code
+    const qrSizeDots = 500; // ~62mm a 203 DPI
+    const gfa = await this.qrToGfa(qrData, qrSizeDots);
 
     const zpl = [
       '^XA',
-      `^PW${pw}`,
-      `^LL${ll}`,
+      '^PON',
+      '^PW608',
+      '^LL1392',
       '^LH0,0',
 
-      // QR code (nessuna rotazione necessaria, è simmetrico)
-      `^FO${qrX},${qrY}^BQN,2,${qrMag}^FDM,${qrData}^FS`,
+      // QR code bitmap ^GFA — posizionato margine 4mm (32 dots)
+      `^FO30,20${gfa}`,
 
-      // Linea verticale separatrice
-      `^FO${lineX},${lineY}^GB${lineT},${lineH},${lineT}^FS`,
+      // Linea orizzontale separatrice
+      '^FO40,560^GB520,4,4,B^FS',
 
-      // Matricola (testo ruotato 90° CW con ^A0R)
-      `^FO${snX},${snY}^A0R,${snSize},${snSize}^FD${sn}^FS`,
+      // Matricola — grande
+      `^FO403,607^A0R,96,106^FD${sn}^FS`,
 
-      // Linea orizzontale sotto matricola
-      `^FO${hlX},${hlY}^GB${hlW},${hlH},${hlH}^FS`,
+      // Modello
+      `^FO280,616^A0R,40,40^FD${mo}^FS`,
 
-      // Descrizione
-      `^FO${descX},${descY}^A0R,${descSize},${descSize}^FD${desc}^FS`,
+      // Descrizione / Produttore
+      `^FO118,613^A0R,40,40^FD${desc || mf}^FS`,
 
-      // Produttore · Modello
-      `^FO${mfX},${mfY}^A0R,${mfSize},${mfSize}^FD${mf}^FS`,
-
-      '^PQ1',
       '^XZ',
     ].join('\n');
 
-    this.logger.log(`ZPL etichetta macchina ${sn}:\n${zpl}`);
+    this.logger.log(`ZPL macchina [${sn}]:\n${zpl.substring(0, 300)}...`);
     return this.sendZpl(zpl);
+  }
+
+  /**
+   * Genera un QR code come stringa ^GFA (Zebra Graphics Field ASCII)
+   * pronta da inserire nel ZPL dopo ^FO.
+   *
+   * Il QR viene renderizzato come matrice di pixel B&W, poi convertito
+   * in bytes packed (1 bit per pixel) e codificati in hex uppercase.
+   */
+  private async qrToGfa(data: string, sizeDots: number): Promise<string> {
+    // Genera QR come raw bitmap: array di pixel RGBA
+    const raw = await QRCode.toBuffer(data, {
+      type: 'png',
+      width: sizeDots,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' },
+      errorCorrectionLevel: 'M',
+    });
+
+    // Decodifica PNG manualmente: qrcode restituisce un PNG buffer.
+    // Usiamo la libreria built-in di Node per estrarre i pixel.
+    // Poiché non abbiamo sharp, usiamo qrcode con rendererType raw.
+    const matrix = await this.getQrMatrix(data);
+    return this.matrixToGfa(matrix, sizeDots);
+  }
+
+  /**
+   * Ottiene la matrice booleana del QR (true = modulo scuro)
+   */
+  private async getQrMatrix(data: string): Promise<boolean[][]> {
+    // qrcode espone create() che restituisce la struttura interna
+    const qr = QRCode.create(data, { errorCorrectionLevel: 'M' });
+    const size = qr.modules.size;
+    const matrix: boolean[][] = [];
+    for (let r = 0; r < size; r++) {
+      matrix[r] = [];
+      for (let c = 0; c < size; c++) {
+        matrix[r][c] = qr.modules.get(r, c) === 1;
+      }
+    }
+    return matrix;
+  }
+
+  /**
+   * Converte matrice QR in stringa ^GFA per ZPL.
+   * Scala la matrice al numero di dots desiderato.
+   *
+   * ^GFA,<total bytes>,<total bytes>,<bytes per row>,<hex data>
+   */
+  private matrixToGfa(matrix: boolean[][], sizeDots: number): string {
+    const modules = matrix.length;
+    // Quanti dots per modulo (arrotondato)
+    const scale = Math.floor(sizeDots / modules);
+    const actualSize = modules * scale;
+
+    // Bytes per riga: 1 bit per pixel, arrotondato al byte superiore
+    const bytesPerRow = Math.ceil(actualSize / 8);
+    const rows: string[] = [];
+
+    for (let r = 0; r < modules; r++) {
+      // Costruisce la riga di pixel come array di bit
+      const bits: number[] = new Array(bytesPerRow * 8).fill(0);
+      for (let c = 0; c < modules; c++) {
+        if (matrix[r][c]) {
+          for (let s = 0; s < scale; s++) {
+            bits[c * scale + s] = 1;
+          }
+        }
+      }
+      // Pack bits → hex
+      let rowHex = '';
+      for (let b = 0; b < bytesPerRow; b++) {
+        let byte = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          byte = (byte << 1) | (bits[b * 8 + bit] || 0);
+        }
+        rowHex += byte.toString(16).padStart(2, '0').toUpperCase();
+      }
+      // Ripeti la riga per i dot di scala verticale
+      for (let s = 0; s < scale; s++) {
+        rows.push(rowHex);
+      }
+    }
+
+    const hexData = rows.join('');
+    const totalBytes = bytesPerRow * rows.length;
+
+    return `^GFA,${totalBytes},${totalBytes},${bytesPerRow},${hexData}^FS`;
   }
 
   private sendZpl(zpl: string): Promise<{ success: boolean; message: string }> {
