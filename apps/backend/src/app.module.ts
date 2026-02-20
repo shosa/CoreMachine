@@ -13,6 +13,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { MinioModule } from './minio/minio.module';
 import { MeilisearchModule } from './meilisearch/meilisearch.module';
 import { StatsModule } from './stats/stats.module';
+import { PrinterModule } from './printer/printer.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { StatsModule } from './stats/stats.module';
     MinioModule,
     MeilisearchModule,
     StatsModule,
+    PrinterModule,
   ],
 })
 export class AppModule {}

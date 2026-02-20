@@ -510,37 +510,22 @@ export default function MachineDetailPage() {
 
   const handlePrintZplLabel = async () => {
     if (!machine) return;
-    const canvasApiUrl = process.env.NEXT_PUBLIC_CANVAS_API_URL || 'http://localhost:3002/api';
-    const qrData = `${window.location.origin}/m/${params.id}`;
-    const desc = (machine.description || '').substring(0, 28);
-    const mfModel = `${machine.manufacturer || ''} ${machine.model || ''}`.trim().substring(0, 28);
-
-    const payload = {
-      elements: [
-        { type: 'qrcode', x: 5, y: 5, width: 62, height: 62, data: qrData, magnification: 4, errorCorrection: 'M' },
-        { type: 'text', x: 72, y: 5, text: machine.serialNumber, fontSize: 22, bold: true },
-        { type: 'text', x: 72, y: 32, text: desc, fontSize: 13 },
-        { type: 'text', x: 72, y: 52, text: mfModel, fontSize: 12 },
-      ],
-      width: 174,
-      height: 76,
-      copies: 1,
-    };
-
     try {
-      const res = await fetch(`${canvasApiUrl}/printer/print`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      const res = await axiosInstance.post('/printer/machine-label', {
+        machineId: machine.id,
+        serialNumber: machine.serialNumber,
+        description: machine.description,
+        manufacturer: machine.manufacturer,
+        model: machine.model,
+        appUrl: window.location.origin,
       });
-      const data = await res.json();
-      if (data.success) {
+      if (res.data.success) {
         toast.showSuccess('Etichetta inviata alla stampante');
       } else {
-        toast.showError(data.message || 'Errore nella stampa');
+        toast.showError(res.data.message || 'Errore nella stampa');
       }
     } catch {
-      toast.showError('Impossibile contattare la stampante (CoreCanvas)');
+      toast.showError('Stampante non raggiungibile');
     }
   };
 
