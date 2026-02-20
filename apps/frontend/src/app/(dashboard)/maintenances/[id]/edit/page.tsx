@@ -245,12 +245,14 @@ export default function EditMaintenancePage() {
               <Controller
                 name="cost"
                 control={control}
-                render={({ field }) => (
+                render={({ field: { onChange, value, ...rest } }) => (
                   <input
-                    {...field}
+                    {...rest}
                     type="number"
                     step="0.01"
                     min="0"
+                    value={value ?? ''}
+                    onChange={(e) => onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
                     className={`input ${errors.cost ? 'border-red-500' : ''}`}
                   />
                 )}

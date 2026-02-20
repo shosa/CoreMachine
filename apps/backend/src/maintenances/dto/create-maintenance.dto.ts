@@ -7,7 +7,7 @@ import {
   IsNumber,
   Min,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { MaintenanceType } from '@prisma/client';
 
 export class CreateMaintenanceDto {
@@ -35,7 +35,7 @@ export class CreateMaintenanceDto {
   spareParts?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined && value !== '' ? parseFloat(value) : undefined))
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   cost?: number;
