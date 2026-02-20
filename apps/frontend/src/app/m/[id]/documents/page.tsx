@@ -29,7 +29,9 @@ export default function MobileDocumentsPage() {
   useEffect(() => {
     fetch(`/api/public/documents/machine/${params.id}`)
       .then((r) => r.json())
-      .then(setDocs)
+      .then((data: PublicDocument[]) =>
+        setDocs(data.filter((d) => d.documentCategory !== 'fattura_acquisto'))
+      )
       .catch(() => setDocs([]))
       .finally(() => setLoading(false));
   }, [params.id]);

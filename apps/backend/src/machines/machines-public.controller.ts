@@ -30,4 +30,24 @@ export class MachinesPublicController {
     if (!machine) throw new NotFoundException('Machine not found');
     return machine;
   }
+
+  @Get(':id/maintenances')
+  async getMaintenances(@Param('id') id: string) {
+    const machine = await this.prisma.machine.findUnique({ where: { id } });
+    if (!machine) throw new NotFoundException('Machine not found');
+
+    return this.prisma.maintenance.findMany({
+      where: { machineId: id, status: 'confirmed' },
+      select: {
+        id: true,
+        date: true,
+        type: true,
+        problemDescription: true,
+        workPerformed: true,
+        createdAt: true,
+      },
+      orderBy: { date: 'desc' },
+      take: 50,
+    });
+  }
 }
