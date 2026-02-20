@@ -508,6 +508,42 @@ export default function MachineDetailPage() {
     );
   };
 
+  const handlePrintZplLabel = async () => {
+    if (!machine) return;
+    const canvasApiUrl = process.env.NEXT_PUBLIC_CANVAS_API_URL || 'http://localhost:3002/api';
+    const qrData = `${window.location.origin}/m/${params.id}`;
+    const desc = (machine.description || '').substring(0, 28);
+    const mfModel = `${machine.manufacturer || ''} ${machine.model || ''}`.trim().substring(0, 28);
+
+    const payload = {
+      elements: [
+        { type: 'qrcode', x: 5, y: 5, width: 62, height: 62, data: qrData, magnification: 4, errorCorrection: 'M' },
+        { type: 'text', x: 72, y: 5, text: machine.serialNumber, fontSize: 22, bold: true },
+        { type: 'text', x: 72, y: 32, text: desc, fontSize: 13 },
+        { type: 'text', x: 72, y: 52, text: mfModel, fontSize: 12 },
+      ],
+      width: 174,
+      height: 76,
+      copies: 1,
+    };
+
+    try {
+      const res = await fetch(`${canvasApiUrl}/printer/print`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.showSuccess('Etichetta inviata alla stampante');
+      } else {
+        toast.showError(data.message || 'Errore nella stampa');
+      }
+    } catch {
+      toast.showError('Impossibile contattare la stampante (CoreCanvas)');
+    }
+  };
+
   const handleTabChange = async (idx: number) => {
     setTabValue(idx);
     if (idx === 3 && !auditLoaded) {
@@ -664,6 +700,15 @@ export default function MachineDetailPage() {
               onClick={handleGenerateQR}
             >
               <IconQr /> Genera QR Code
+            </button>
+            <button
+              className="btn btn-secondary w-full flex items-center justify-center gap-2"
+              onClick={handlePrintZplLabel}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              Stampa Etichetta ZPL
             </button>
             {hasRole(['admin', 'tecnico']) && (
               <button

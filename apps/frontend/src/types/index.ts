@@ -86,16 +86,20 @@ export type MaintenanceType =
   | 'guasto'
   | 'riparazione';
 
+export type MaintenanceStatus = 'draft' | 'confirmed';
+
 export interface Maintenance {
   id: string;
   machineId: string;
-  operatorId: string;
+  operatorId?: string;
   date: string;
   type: MaintenanceType;
+  status: MaintenanceStatus;
   problemDescription?: string;
   workPerformed: string;
   spareParts?: string;
   cost?: number;
+  mobileNote?: string;
   machine?: Machine;
   operator?: User;
   documents?: Document[];

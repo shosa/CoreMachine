@@ -16,6 +16,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { MaintenancesService } from './maintenances.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
+import { ApproveDraftDto } from './dto/approve-draft.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -43,6 +44,18 @@ export class MaintenancesController {
   @Get()
   findAll(@Query('machineId') machineId?: string, @Query('operatorId') operatorId?: string) {
     return this.maintenancesService.findAll({ machineId, operatorId });
+  }
+
+  @Get('drafts')
+  @Roles(UserRole.admin, UserRole.tecnico)
+  findAllDrafts() {
+    return this.maintenancesService.findAllDrafts();
+  }
+
+  @Post(':id/approve')
+  @Roles(UserRole.admin, UserRole.tecnico)
+  approveDraft(@Param('id') id: string, @Body() dto: ApproveDraftDto, @Request() req: any) {
+    return this.maintenancesService.approveDraft(id, dto, req.user);
   }
 
   @Get('search')

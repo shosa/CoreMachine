@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import axiosInstance from '@/lib/axios';
 import { useToast } from '@/components/Toast';
+import { useAuthStore } from '@/store/authStore';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import {
@@ -71,7 +73,9 @@ export default function DashboardPage() {
   const [trends, setTrends] = useState<any[]>([]);
   const [typeAnalysis, setTypeAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [draftsCount, setDraftsCount] = useState<number>(0);
   const { showError } = useToast();
+  const { hasRole } = useAuthStore();
 
   useEffect(() => {
     fetchDashboardData();
@@ -80,12 +84,13 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, trendsRes, typesRes] = await Promise.all([
+      const requests: Promise<any>[] = [
         axiosInstance.get('/stats/dashboard'),
         axiosInstance.get('/stats/maintenance-trends'),
         axiosInstance.get('/stats/type-analysis'),
-      ]);
+      ];
 
+      const [statsRes, trendsRes, typesRes] = await Promise.all(requests);
       setStats(statsRes.data);
       setTrends(trendsRes.data);
       setTypeAnalysis(typesRes.data);
@@ -94,6 +99,13 @@ export default function DashboardPage() {
       console.error('Dashboard error:', error);
     } finally {
       setLoading(false);
+    }
+
+    // Fetch drafts count separately (only for admin/tecnico, non-blocking)
+    if (hasRole(['admin', 'tecnico'])) {
+      axiosInstance.get('/maintenances/drafts')
+        .then((r) => setDraftsCount(Array.isArray(r.data) ? r.data.length : 0))
+        .catch(() => {});
     }
   };
 
@@ -165,6 +177,30 @@ export default function DashboardPage() {
           subtitle="Prossimi 30 giorni"
         />
       </div>
+
+      {/* Drafts Widget — visible only to admin/tecnico when there are pending drafts */}
+      {hasRole(['admin', 'tecnico']) && draftsCount > 0 && (
+        <Link href="/maintenances/pending" className="block mb-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4 hover:bg-amber-100 transition-colors">
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-amber-900">
+                {draftsCount} {draftsCount === 1 ? 'bozza mobile in attesa' : 'bozze mobile in attesa'}
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Manutenzioni registrate da QR code da revisionare e confermare
+              </p>
+            </div>
+            <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">

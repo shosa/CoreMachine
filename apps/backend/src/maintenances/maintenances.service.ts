@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { AuditService, AuditUserContext } from '../audit/audit.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
+import { CreateDraftMaintenanceDto } from './dto/create-draft-maintenance.dto';
+import { ApproveDraftDto } from './dto/approve-draft.dto';
 import { DocumentCategory } from '@prisma/client';
 
 @Injectable()
@@ -114,8 +116,77 @@ export class MaintenancesService {
     return maintenance;
   }
 
+  async createDraft(dto: CreateDraftMaintenanceDto) {
+    const machine = await this.prisma.machine.findUnique({ where: { id: dto.machineId } });
+    if (!machine) throw new NotFoundException('Machine not found');
+
+    const maintenance = await this.prisma.maintenance.create({
+      data: {
+        machineId: dto.machineId,
+        operatorId: null,
+        date: new Date(dto.date),
+        type: dto.type,
+        status: 'draft',
+        problemDescription: dto.problemDescription,
+        workPerformed: dto.workPerformed,
+        mobileNote: dto.mobileNote,
+      },
+      include: {
+        machine: { select: { id: true, serialNumber: true, description: true } },
+      },
+    });
+
+    await this.audit.log('Maintenance', maintenance.id, 'CREATE', { id: 'anonymous', firstName: 'Mobile', lastName: 'Anonimo' }, { after: { status: 'draft', machineId: dto.machineId, type: dto.type } });
+
+    return maintenance;
+  }
+
+  async findAllDrafts() {
+    return this.prisma.maintenance.findMany({
+      where: { status: 'draft' },
+      include: {
+        machine: { select: { id: true, serialNumber: true, description: true, manufacturer: true, model: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async approveDraft(id: string, dto: ApproveDraftDto, user: AuditUserContext) {
+    const maintenance = await this.findOne(id);
+    if (maintenance.status !== 'draft') {
+      throw new BadRequestException('Manutenzione non è una bozza');
+    }
+
+    const operator = await this.prisma.user.findUnique({ where: { id: dto.operatorId } });
+    if (!operator) throw new NotFoundException('Operatore non trovato');
+
+    const updated = await this.prisma.maintenance.update({
+      where: { id },
+      data: {
+        operatorId: dto.operatorId,
+        status: 'confirmed',
+        ...(dto.spareParts !== undefined && { spareParts: dto.spareParts }),
+        ...(dto.cost !== undefined && { cost: dto.cost }),
+      },
+      include: {
+        machine: { select: { id: true, serialNumber: true, description: true } },
+        operator: { select: { id: true, firstName: true, lastName: true, email: true } },
+        documents: true,
+      },
+    });
+
+    const { machine: _mb, operator: _ob, documents: _db, ...beforeFlat } = maintenance as any;
+    const { machine: _ma, operator: _oa, documents: _da, ...afterFlat } = updated as any;
+    const diff = this.audit.diffObjects(beforeFlat, afterFlat);
+    await this.audit.log('Maintenance', id, 'UPDATE', user, diff);
+
+    return updated;
+  }
+
   async findAll(filters?: { machineId?: string; operatorId?: string }) {
-    const where: any = {};
+    const where: any = {
+      status: 'confirmed',
+    };
 
     if (filters?.machineId) {
       where.machineId = filters.machineId;

@@ -20,6 +20,11 @@ enum MaintenanceType {
   riparazione
 }
 
+enum MaintenanceStatus {
+  draft
+  confirmed
+}
+
 enum MaintenanceFrequency {
   daily
   weekly
@@ -131,21 +136,23 @@ model Document {
 }
 
 model Maintenance {
-  id                 String          @id @default(uuid())
-  machineId          String          @map("machine_id")
-  operatorId         String          @map("operator_id")
+  id                 String            @id @default(uuid())
+  machineId          String            @map("machine_id")
+  operatorId         String?           @map("operator_id")
   date               DateTime
   type               MaintenanceType
-  problemDescription String?         @map("problem_description") @db.Text
-  workPerformed      String          @map("work_performed") @db.Text
-  spareParts         String?         @map("spare_parts") @db.Text
-  cost               Decimal?        @db.Decimal(10, 2)
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
+  status             MaintenanceStatus @default(confirmed)
+  problemDescription String?           @map("problem_description") @db.Text
+  workPerformed      String            @map("work_performed") @db.Text
+  spareParts         String?           @map("spare_parts") @db.Text
+  cost               Decimal?          @db.Decimal(10, 2)
+  mobileNote         String?           @map("mobile_note") @db.Text
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
 
   // Relations
   machine   Machine    @relation(fields: [machineId], references: [id], onDelete: Cascade)
-  operator  User       @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  operator  User?      @relation(fields: [operatorId], references: [id], onDelete: Restrict)
   documents Document[]
 
   @@map("maintenances")
