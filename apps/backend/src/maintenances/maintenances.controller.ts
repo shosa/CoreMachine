@@ -80,6 +80,12 @@ export class MaintenancesController {
     return this.maintenancesService.update(id, updateMaintenanceDto, documents, req?.user?.id, req?.user);
   }
 
+  @Delete('draft/:id')
+  @Roles(UserRole.admin, UserRole.tecnico)
+  deleteDraft(@Param('id') id: string, @Request() req: any) {
+    return this.maintenancesService.deleteDraft(id, req.user);
+  }
+
   @Delete(':id')
   @Roles(UserRole.admin)
   remove(@Param('id') id: string, @Request() req: any) {

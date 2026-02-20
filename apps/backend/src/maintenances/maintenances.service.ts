@@ -384,6 +384,20 @@ export class MaintenancesService {
     return { message: 'Maintenance deleted successfully' };
   }
 
+  async deleteDraft(id: string, user: AuditUserContext) {
+    const maintenance = await this.findOne(id);
+    if (maintenance.status !== 'draft') {
+      throw new BadRequestException('Solo le bozze possono essere eliminate con questo endpoint');
+    }
+
+    await this.prisma.maintenance.delete({ where: { id } });
+
+    const { machine: _m, operator: _o, documents: _d, ...flat } = maintenance as any;
+    await this.audit.log('Maintenance', id, 'DELETE', user, { before: flat });
+
+    return { message: 'Bozza eliminata' };
+  }
+
   async removeDocument(maintenanceId: string, documentId: string, userId: string) {
     // Verify maintenance exists and user has access
     const maintenance = await this.prisma.maintenance.findUnique({

@@ -41,8 +41,8 @@ export class PrinterService {
       '^LL1392',
       '^LH0,0',
 
-      // QR code bitmap ^GFA — posizionato margine 4mm (32 dots)
-      `^FO30,20${gfa}`,
+      // QR code bitmap ^GFA — spostato 5mm verso top (40 dots in meno su Y feed)
+      `^FO30,0${gfa}`,
 
       // Linea orizzontale separatrice
       '^FO40,560^GB520,4,4,B^FS',
@@ -53,8 +53,8 @@ export class PrinterService {
       // Modello
       `^FO280,616^A0R,40,40^FD${mo}^FS`,
 
-      // Descrizione / Produttore
-      `^FO118,613^A0R,40,40^FD${desc || mf}^FS`,
+      // Produttore
+      `^FO118,613^A0R,40,40^FD${mf}^FS`,
 
       '^XZ',
     ].join('\n');

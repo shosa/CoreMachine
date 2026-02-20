@@ -26,6 +26,11 @@ interface ApproveModal {
   maintenance: Maintenance | null;
 }
 
+interface DeleteModal {
+  open: boolean;
+  maintenance: Maintenance | null;
+}
+
 export default function PendingMaintenancesPage() {
   const toast = useToast();
   const [drafts, setDrafts] = useState<Maintenance[]>([]);
@@ -34,6 +39,8 @@ export default function PendingMaintenancesPage() {
   const [approveModal, setApproveModal] = useState<ApproveModal>({ open: false, maintenance: null });
   const [approveForm, setApproveForm] = useState({ operatorId: '', spareParts: '', cost: '' });
   const [approving, setApproving] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<DeleteModal>({ open: false, maintenance: null });
+  const [deleting, setDeleting] = useState(false);
 
   const fetchDrafts = useCallback(async () => {
     setLoading(true);
@@ -73,6 +80,21 @@ export default function PendingMaintenancesPage() {
       toast.showError(err.response?.data?.message || 'Errore durante l\'approvazione');
     } finally {
       setApproving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModal.maintenance) return;
+    setDeleting(true);
+    try {
+      await axiosInstance.delete(`/maintenances/draft/${deleteModal.maintenance.id}`);
+      toast.showSuccess('Bozza eliminata');
+      setDeleteModal({ open: false, maintenance: null });
+      fetchDrafts();
+    } catch (err: any) {
+      toast.showError(err.response?.data?.message || 'Errore durante l\'eliminazione');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -154,15 +176,26 @@ export default function PendingMaintenancesPage() {
                       {m.mobileNote || <span className="text-gray-300">—</span>}
                     </td>
                     <td className="py-3 px-4">
-                      <button
-                        onClick={() => openApprove(m)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-700 transition-colors"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Approva
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openApprove(m)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-700 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Approva
+                        </button>
+                        <button
+                          onClick={() => setDeleteModal({ open: true, maintenance: m })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Elimina
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -286,6 +319,57 @@ export default function PendingMaintenancesPage() {
                     disabled={approving || !approveForm.operatorId}
                   >
                     {approving ? 'Salvataggio...' : 'Conferma'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Delete Confirm Modal */}
+      <AnimatePresence>
+        {deleteModal.open && deleteModal.maintenance && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40"
+              onClick={() => !deleting && setDeleteModal({ open: false, maintenance: null })}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden z-10"
+            >
+              <div className="p-6">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 text-center mb-1">Elimina bozza</h2>
+                <p className="text-sm text-gray-500 text-center mb-2">
+                  Stai per eliminare la bozza di manutenzione per
+                </p>
+                <p className="text-sm font-semibold text-gray-900 text-center mb-6">
+                  {(deleteModal.maintenance.machine as any)?.serialNumber} — {TYPE_LABELS[deleteModal.maintenance.type]}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    className="btn btn-secondary flex-1"
+                    onClick={() => setDeleteModal({ open: false, maintenance: null })}
+                    disabled={deleting}
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    className="btn flex-1 bg-red-600 text-white hover:bg-red-700"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? 'Eliminazione...' : 'Elimina'}
                   </button>
                 </div>
               </div>

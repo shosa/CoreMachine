@@ -624,7 +624,7 @@ export default function MachineDetailPage() {
           <span className="text-gray-900 font-medium">{machine.serialNumber}</span>
         </nav>
         <h1 className="text-2xl font-bold text-gray-900">
-          {machine.description || `Macchinario ${machine.serialNumber}`}
+          {machine.model || machine.description || `Macchinario ${machine.serialNumber}`}
         </h1>
       </div>
 
@@ -634,7 +634,7 @@ export default function MachineDetailPage() {
           {/* Left: info */}
           <div className="md:col-span-2 space-y-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{machine.description}</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">{machine.model || machine.description}</h2>
               <div className="flex flex-wrap gap-2 mt-2">
                 <span className="badge">{machine.manufacturer} {machine.model}</span>
                 <span className="badge badge-info">{machine.type?.category?.name || 'N/A'}</span>
